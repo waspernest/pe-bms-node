@@ -1,4 +1,5 @@
-const ZKLib = require('node-zklib');
+//const ZKLib = require('node-zklib');
+const ZKLib = require('zklib-js');
 
 exports.testConnection = async (req, res) => {
     // Replace with your actual device IP and port
@@ -30,8 +31,14 @@ exports.getAttendance = async (req, res) => {
         await zkDevice.createSocket();
         const attendance = await zkDevice.getAttendances();
         await zkDevice.disconnect();
+
+        const formattedAttendance = attendance.data.map((log) => ({
+            ...log,
+            recordTime: new Date(log.recordTime).toISOString(),
+        }));
+        
         res.json({
-            attendance,
+            attendance: formattedAttendance,
             currentTime: new Date().toISOString()
         });
     } catch (error) {

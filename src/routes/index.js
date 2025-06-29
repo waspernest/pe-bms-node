@@ -9,4 +9,7 @@ router.get("/", (req, res) => {
 // Mount ZK routes
 router.use("/zk", require("./zk"));
 
+// Mount Admin routes
+router.use("/admin", require("./admin"));
+
 module.exports = router;
