@@ -5,6 +5,15 @@ const { setupSocket } = require("./sockets");
 const server = http.createServer(app);
 setupSocket(server);
 
-server.listen(process.env.PORT || 3000, () => {
-    console.log(`Server is running on port ${process.env.PORT || 3000}`);
+// At the top of your server file
+const { db } = require('./db');
+const PORT = process.env.PORT || 3001;
+const database = db();
+
+// This will establish the database connection
+database.serialize(() => {
+  // Start your server after DB connection is ready
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
 });

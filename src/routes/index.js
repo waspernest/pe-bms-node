@@ -6,10 +6,16 @@ router.get("/", (req, res) => {
     res.send("Hello World!");
 });
 
-// Mount ZK routes
-router.use("/zk", require("./zk"));
+// Mount Auth routes
+router.use("/auth", require("./auth"));
 
 // Mount Admin routes
 router.use("/admin", require("./admin"));
+
+// Mount ZK routes
+router.use("/zk", require("./zk"));
+
+// Mount User routes
+router.use("/user", require("./user"));
 
 module.exports = router;

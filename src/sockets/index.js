@@ -1,10 +1,11 @@
 // src/sockets/index.js
 const { Server } = require('socket.io');
+const { startPolling } = require('../services/zkService'); // Adjust path as needed
 
 function setupSocket(server) {
   const io = new Server(server, {
     cors: {
-      origin: '*', // Adjust as needed for security
+      origin: '*',
       methods: ['GET', 'POST'],
       credentials: true
     }
@@ -13,7 +14,6 @@ function setupSocket(server) {
   io.on('connection', (socket) => {
     console.log('🟢 Client connected:', socket.id);
 
-    // Example event
     socket.on('ping', (data) => {
       console.log('Received ping:', data);
       socket.emit('pong', { message: 'pong', received: data });
@@ -24,7 +24,8 @@ function setupSocket(server) {
     });
   });
 
-  // Optionally return io for further use
+  startPolling(io);
+
   return io;
 }
 
