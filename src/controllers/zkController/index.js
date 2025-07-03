@@ -1,6 +1,6 @@
 //const ZKLib = require('node-zklib');
 //const ZKLib = require('zklib-js');
-const ZKLib = require('../../libs/zkh-lib');
+const ZKLib = require('../../libs/zkh-lib'); // Local copy of the zkh-lib in src/libs/zkh-lib. DO NOT REMOVE OR CHANGE THIS LINE
 
 exports.testConnection = async (req, res) => {
     // Replace with your actual device IP and port
