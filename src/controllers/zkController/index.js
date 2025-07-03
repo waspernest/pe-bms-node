@@ -1,6 +1,6 @@
 //const ZKLib = require('node-zklib');
-const ZKLib = require('zklib-js');
-//const ZKLib = require('zkh-lib');
+//const ZKLib = require('zklib-js');
+const ZKLib = require('../../libs/zkh-lib');
 
 exports.testConnection = async (req, res) => {
     // Replace with your actual device IP and port
@@ -40,27 +40,55 @@ exports.getUsers = async (req, res) => {
 
 exports.getAttendance = async (req, res) => {
     const zkDevice = new ZKLib('192.168.254.201', 4370, 10000, 4000);
-    try {
-        await zkDevice.createSocket();
-        const attendance = await zkDevice.getAttendances();
-        await zkDevice.disconnect();
+    let isConnected = false;
 
-        const formattedAttendance = attendance.data.map((log) => ({
+    try {
+        console.log(`[${new Date().toISOString()}] 🔌 Starting connection to ZKTeco device...`);
+        await zkDevice.createSocket();
+        isConnected = true;
+        console.log(`[${new Date().toISOString()}] ✅ Device connected.`);
+        console.log(`[${new Date().toISOString()}] 📥 Attempting to fetch attendance logs...`);
+
+        const attendance = await zkDevice.getAttendances();
+
+        if (!attendance || !attendance.data || attendance.data.length === 0) {
+            console.warn('⚠️ No attendance logs available.');
+            return res.json({
+                success: true,
+                message: 'No attendance records found.',
+                attendance: [],
+                currentTime: new Date().toISOString()
+            });
+        }
+
+        const formattedAttendance = attendance.data.map(log => ({
             ...log,
-            recordTime: new Date(log.recordTime).toISOString(),
+            recordTime: new Date(log.recordTime).toISOString()
         }));
-        
+
         res.json({
+            success: true,
             attendance: formattedAttendance,
-            currentTime: new Date().toISOString()
+            currentTime: new Date().toISOString(),
+            recordCount: formattedAttendance.length
         });
+
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error(`[${new Date().toISOString()}] ❌ Error encountered:`, error.message || error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch attendance data',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     } finally {
-        try {
-            await zkDevice.disconnect();
-        } catch (e) {
-            console.error('Error disconnecting from ZK device:', e);
+        if (isConnected) {
+            try {
+                console.log(`[${new Date().toISOString()}] 🔌 Disconnecting from device...`);
+                await zkDevice.disconnect();
+                console.log(`[${new Date().toISOString()}] 🔌 Disconnected successfully.`);
+            } catch (e) {
+                console.error('⚠️ Error during disconnect:', e.message || e);
+            }
         }
     }
 };

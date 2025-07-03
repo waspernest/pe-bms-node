@@ -1,6 +1,6 @@
 // services/zkService.js
-const ZKLib = require('zklib-js');
-//const ZKLib = require('zkh-lib');
+//const ZKLib = require('zklib-js');
+const ZKLib = require('zkh-lib');
 
 const zk = new ZKLib('192.168.254.201', 4370, 10000, 4000);
 
