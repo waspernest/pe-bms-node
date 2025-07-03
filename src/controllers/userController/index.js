@@ -34,7 +34,15 @@ exports.getUserById = (req, res) => {
 // Update a user by ID and sync with ZK device
 exports.updateUser = async (req, res) => {
     const { id } = req.params;
-    const { first_name, last_name, zk_id } = req.body;
+    const { 
+        first_name, 
+        last_name, 
+        zk_id, 
+        job_position,
+        work_schedule_start,
+        work_schedule_end,
+        has_fingerprint
+    } = req.body;
     
     try {
         // Get the existing user data first to get the password
@@ -72,9 +80,66 @@ exports.updateUser = async (req, res) => {
             }
         }
 
-        // Update user in database
-        const stmt = db.prepare('UPDATE users SET first_name = ?, last_name = ?, zk_id = ? WHERE id = ?');
-        const result = await stmt.run(first_name, last_name, zk_id, id);
+        // Prepare update fields and values
+        const updateFields = [];
+        const updateValues = [];
+        
+        // Add basic fields
+        if (first_name !== undefined) {
+            updateFields.push('first_name = ?');
+            updateValues.push(first_name);
+        }
+        if (last_name !== undefined) {
+            updateFields.push('last_name = ?');
+            updateValues.push(last_name);
+        }
+        if (zk_id !== undefined) {
+            updateFields.push('zk_id = ?');
+            updateValues.push(zk_id);
+        }
+        
+        // Add work schedule fields with validation
+        if (work_schedule_start !== undefined) {
+            if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(work_schedule_start)) {
+                throw new Error('Invalid start time format. Use HH:MM (e.g., 09:00)');
+            }
+            updateFields.push('work_schedule_start = ?');
+            updateValues.push(work_schedule_start);
+        }
+        
+        if (work_schedule_end !== undefined) {
+            if (!/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/.test(work_schedule_end)) {
+                throw new Error('Invalid end time format. Use HH:MM (e.g., 18:00)');
+            }
+            updateFields.push('work_schedule_end = ?');
+            updateValues.push(work_schedule_end);
+        }
+        
+        // Add other fields
+        if (job_position !== undefined) {
+            updateFields.push('job_position = ?');
+            updateValues.push(job_position || null);
+        }
+        
+        if (has_fingerprint !== undefined) {
+            updateFields.push('has_fingerprint = ?');
+            updateValues.push(has_fingerprint ? 1 : 0);
+        }
+        
+        // Add updated_at timestamp
+        updateFields.push('updated_at = CURRENT_TIMESTAMP');
+        
+        if (updateFields.length === 0) {
+            throw new Error('No fields to update');
+        }
+        
+        // Add user ID to values for WHERE clause
+        updateValues.push(id);
+        
+        // Build and execute the update query
+        const updateQuery = `UPDATE users SET ${updateFields.join(', ')} WHERE id = ?`;
+        const stmt = db.prepare(updateQuery);
+        const result = await stmt.run(...updateValues);
         await stmt.finalize();
 
         if (result.changes === 0) {
@@ -101,14 +166,28 @@ exports.updateUser = async (req, res) => {
             throw new Error(errorMsg);
         }
 
+        // Fetch the updated user to include all fields in the response
+        const updatedUser = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE id = ?', [id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
         res.json({ 
             success: true, 
             message: 'User updated successfully in both database and ZK device',
             user: {
-                id: id,
-                first_name,
-                last_name,
-                zk_id
+                id: updatedUser.id,
+                first_name: updatedUser.first_name,
+                last_name: updatedUser.last_name,
+                zk_id: updatedUser.zk_id,
+                job_position: updatedUser.job_position,
+                work_schedule_start: updatedUser.work_schedule_start,
+                work_schedule_end: updatedUser.work_schedule_end,
+                has_fingerprint: Boolean(updatedUser.has_fingerprint),
+                created_at: updatedUser.created_at,
+                updated_at: updatedUser.updated_at
             }
         });
     } catch (error) {
@@ -120,27 +199,33 @@ exports.updateUser = async (req, res) => {
     }
 };
 
-// Create a new user in DB and ZK Device
+// Create a new user in the database
 exports.createUser = async (req, res) => {
-    const { first_name, last_name, zk_id, password } = req.body;
-    const role = 0;
+    const { 
+        first_name, 
+        last_name, 
+        zk_id, 
+        password, 
+        job_position,
+        work_schedule_start,
+        work_schedule_end,
+        has_fingerprint = false
+    } = req.body;
     
-    if (!first_name || !last_name || !zk_id || !password) {
-        return res.status(400).json({ error: 'First Name, Last Name, ZK ID, and Password are required.' });
-    }
-
+    const role = 0; // Default role
+    
     try {
-        // 1. Validate zk_id format (should be a 4-digit string)
-        console.log('Received zk_id:', { zk_id, type: typeof zk_id, length: zk_id?.length });
+        // Validate required fields
+        if (!first_name || !last_name || !zk_id || !password) {
+            throw new Error('First name, last name, ZK ID, and password are required');
+        }
+        
+        // Validate ZK ID format
         if (!/^\d{1,4}$/.test(zk_id)) {
             throw new Error('ZK ID must be a 1-4 digit number (e.g., 1, 01, 001, or 0001)');
         }
         
-        // Ensure zk_id is a 4-digit string with leading zeros
-        const paddedZkId = String(zk_id).padStart(4, '0');
-        console.log('Padded zk_id:', paddedZkId);
-        
-        // 2. Check if zk_id exists in deleted_users table
+        // Check if zk_id exists in deleted_users table
         const deletedUser = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM deleted_users WHERE zk_id = ?', [zk_id], (err, row) => {
                 if (err) reject(err);
@@ -148,34 +233,11 @@ exports.createUser = async (req, res) => {
             });
         });
         
-        const allDeletedUsers = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM deleted_users', (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-        
-        console.log('Deleted users check:', {
-            zk_id,
-            deletedUser,
-            allDeletedUsers,
-            isMatch: !!deletedUser
-        });
-        
         if (deletedUser) {
             throw new Error(`ZK ID ${zk_id} has been previously deleted and cannot be reused`);
         }
         
-        // 3. Debug: Check all users in the database
-        const allUsers = await new Promise((resolve, reject) => {
-            db.all('SELECT * FROM users', (err, rows) => {
-                if (err) reject(err);
-                else resolve(rows);
-            });
-        });
-        console.log('All users in database:', allUsers);
-        
-        // 4. Check if zk_id already exists in users table
+        // Check if zk_id already exists in users table
         const existingUser = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM users WHERE zk_id = ?', [zk_id], (err, row) => {
                 if (err) reject(err);
@@ -183,67 +245,57 @@ exports.createUser = async (req, res) => {
             });
         });
         
-        console.log('Existing user check:', { zk_id, existingUser });
-        
         if (existingUser) {
             throw new Error(`ZK ID ${zk_id} is already in use`);
         }
 
-        // 2. Insert user into database
+        // Insert user into database
         const stmt = await db.prepare(
-            "INSERT INTO users (first_name, last_name, zk_id, password, role) VALUES (?, ?, ?, ?, ?)"
+            `INSERT INTO users (
+                first_name, 
+                last_name, 
+                zk_id, 
+                password, 
+                role,
+                job_position,
+                work_schedule_start,
+                work_schedule_end,
+                has_fingerprint
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
         );
-        const result = await stmt.run(first_name, last_name, zk_id, password, role);
+        
+        // Validate and set work schedule times
+        const startTime = work_schedule_start || '09:00';
+        const endTime = work_schedule_end || '18:00';
+        
+        // Validate time format (HH:MM)
+        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
+            throw new Error('Invalid time format. Please use HH:MM format (e.g., 09:00)');
+        }
+        
+        const result = await stmt.run(
+            first_name.trim(), 
+            last_name.trim(), 
+            zk_id.padStart(4, '0'), // Ensure 4-digit format
+            password, 
+            role,
+            job_position ? job_position.trim() : null,
+            startTime,
+            endTime,
+            has_fingerprint ? 1 : 0
+        );
         await stmt.finalize();
 
-        if (result.changes === 0) {
-            throw new Error('Failed to insert user into database');
-        }
-
         const userId = Number(result.lastID);
-        const name = `${first_name} ${last_name}`.trim();
         
-        // Prepare ZK device parameters
-        const zk_uid = parseInt(zk_id, 10); // Convert to integer (removes leading zeros)
-        const zk_userid = String(zk_id); // Keep as string with padding
-        const zk_password = '1234'; // Default password
-        
-        console.log('Creating ZK user with:', { 
-            uid: zk_uid,
-            userid: zk_userid,
-            name,
-            password: '****',
-            role: 0,
-            cardno: 0
+        // Return success response for database insertion only
+        res.json({ 
+            success: true, 
+            message: 'User created successfully', 
+            userId, 
+            zk_id 
         });
-        
-        const zkReq = {
-            body: {
-                uid: zk_uid,         // Integer (without leading zeros)
-                userid: zk_userid,   // String (with leading zeros)
-                name: String(name),  // String
-                password: zk_password, // String (default '1234')
-                role: 0,             // Integer
-                cardno: 0            // Integer
-            }
-        };
-        
-        let zkResult;
-        try {
-            zkResult = await createOrUpdateUser(zkReq, {});
-            console.log('ZK device response:', zkResult);
-        } catch (zkError) {
-            console.error('Error creating ZK user:', zkError);
-            throw new Error(`Failed to create user in ZK device: ${zkError.message}`);
-        }
-
-        if (zkResult && zkResult.success) {
-            res.json({ success: true, message: 'User created in DB and ZK device', userId, zk_id });
-        } else {
-            // 3. Rollback: delete from DB if ZK device creation fails
-            await db.run('DELETE FROM users WHERE id = ?', [userId]);
-            throw new Error('Failed to create user in ZK device');
-        }
     } catch (error) {
         console.error('Error creating user:', error.message);
         res.status(500).json({
