@@ -11,6 +11,12 @@ exports.testConnection = async (req, res) => {
         res.json({ reachable: true, message: 'Device is reachable.' });
     } catch (error) {
         res.status(500).json({ reachable: false, message: 'Device is not reachable.', error: error.message });
+    } finally {
+        try {
+            await zkDevice.disconnect();
+        } catch (e) {
+            console.error('Error disconnecting from ZK device:', e);
+        }
     }
 };
 
@@ -23,6 +29,12 @@ exports.getUsers = async (req, res) => {
         res.json({ users });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    } finally {
+        try {
+            await zkDevice.disconnect();
+        } catch (e) {
+            console.error('Error disconnecting from ZK device:', e);
+        }
     }
 };
 
@@ -44,6 +56,12 @@ exports.getAttendance = async (req, res) => {
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
+    } finally {
+        try {
+            await zkDevice.disconnect();
+        } catch (e) {
+            console.error('Error disconnecting from ZK device:', e);
+        }
     }
 };
 
@@ -72,10 +90,15 @@ exports.createOrUpdateUser = async (req, res) => {
         }
         return { success: true, result };
     } catch (error) {
-        await zkDevice.disconnect();
         if (res && typeof res.status === 'function' && typeof res.json === 'function') {
             res.status(500).json({ success: false, error: error.message });
         }
         throw error;
+    } finally {
+        try {
+            await zkDevice.disconnect();
+        } catch (e) {
+            console.error('Error disconnecting from ZK device:', e);
+        }
     }
 };

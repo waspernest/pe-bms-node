@@ -3,7 +3,7 @@ const app = require("./app");
 const { setupSocket } = require("./sockets");
 
 const server = http.createServer(app);
-setupSocket(server);
+//setupSocket(server);
 
 // At the top of your server file
 const { db } = require('./db');

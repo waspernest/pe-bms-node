@@ -131,24 +131,59 @@ exports.createUser = async (req, res) => {
 
     try {
         // 1. Validate zk_id format (should be a 4-digit string)
-        if (!/^\d{4}$/.test(zk_id)) {
-            throw new Error('ZK ID must be a 4-digit number (e.g., 0001)');
+        console.log('Received zk_id:', { zk_id, type: typeof zk_id, length: zk_id?.length });
+        if (!/^\d{1,4}$/.test(zk_id)) {
+            throw new Error('ZK ID must be a 1-4 digit number (e.g., 1, 01, 001, or 0001)');
         }
         
+        // Ensure zk_id is a 4-digit string with leading zeros
+        const paddedZkId = String(zk_id).padStart(4, '0');
+        console.log('Padded zk_id:', paddedZkId);
+        
         // 2. Check if zk_id exists in deleted_users table
-        const checkDeletedStmt = await db.prepare('SELECT * FROM deleted_users WHERE zk_id = ?');
-        const deletedUser = await checkDeletedStmt.get(zk_id);
-        await checkDeletedStmt.finalize();
+        const deletedUser = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM deleted_users WHERE zk_id = ?', [zk_id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        const allDeletedUsers = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM deleted_users', (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+        
+        console.log('Deleted users check:', {
+            zk_id,
+            deletedUser,
+            allDeletedUsers,
+            isMatch: !!deletedUser
+        });
         
         if (deletedUser) {
-            console.log('Found deleted user with ZK ID:', zk_id);
             throw new Error(`ZK ID ${zk_id} has been previously deleted and cannot be reused`);
         }
         
-        // 3. Check if zk_id already exists in users table
-        const checkExistingStmt = await db.prepare('SELECT * FROM users WHERE zk_id = ?');
-        const existingUser = await checkExistingStmt.get(zk_id);
-        await checkExistingStmt.finalize();
+        // 3. Debug: Check all users in the database
+        const allUsers = await new Promise((resolve, reject) => {
+            db.all('SELECT * FROM users', (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        });
+        console.log('All users in database:', allUsers);
+        
+        // 4. Check if zk_id already exists in users table
+        const existingUser = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE zk_id = ?', [zk_id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        console.log('Existing user check:', { zk_id, existingUser });
         
         if (existingUser) {
             throw new Error(`ZK ID ${zk_id} is already in use`);
@@ -166,20 +201,41 @@ exports.createUser = async (req, res) => {
         }
 
         const userId = Number(result.lastID);
-        const name = `${first_name} ${last_name}`;
-
-        // 2. Try to create user in ZK device
+        const name = `${first_name} ${last_name}`.trim();
+        
+        // Prepare ZK device parameters
+        const zk_uid = parseInt(zk_id, 10); // Convert to integer (removes leading zeros)
+        const zk_userid = String(zk_id); // Keep as string with padding
+        const zk_password = '1234'; // Default password
+        
+        console.log('Creating ZK user with:', { 
+            uid: zk_uid,
+            userid: zk_userid,
+            name,
+            password: '****',
+            role: 0,
+            cardno: 0
+        });
+        
         const zkReq = {
             body: {
-                uid: userId, // or userId if you want to use DB id
-                userid: zk_id,
-                name,
-                password,
-                role: 0,
-                cardno: 0
+                uid: zk_uid,         // Integer (without leading zeros)
+                userid: zk_userid,   // String (with leading zeros)
+                name: String(name),  // String
+                password: zk_password, // String (default '1234')
+                role: 0,             // Integer
+                cardno: 0            // Integer
             }
         };
-        const zkResult = await createOrUpdateUser(zkReq, {});
+        
+        let zkResult;
+        try {
+            zkResult = await createOrUpdateUser(zkReq, {});
+            console.log('ZK device response:', zkResult);
+        } catch (zkError) {
+            console.error('Error creating ZK user:', zkError);
+            throw new Error(`Failed to create user in ZK device: ${zkError.message}`);
+        }
 
         if (zkResult && zkResult.success) {
             res.json({ success: true, message: 'User created in DB and ZK device', userId, zk_id });

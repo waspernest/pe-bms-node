@@ -215,7 +215,7 @@ async function createTable(tableName, schema, options = {}) {
  */
 function deleteRecordsById(table, ids) {
   // Only allow deletion from known tables
-  const allowedTables = ['users', 'admins']; // Add more table names as needed
+  const allowedTables = ['users', 'admins', 'deleted_users']; // Add more table names as needed
   if (!allowedTables.includes(table)) {
       return Promise.reject(new Error('Invalid table name'));
   }

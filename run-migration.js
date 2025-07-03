@@ -1,5 +1,5 @@
 const { db } = require('./src/db');
-const { up } = require('./src/migrations/20250702_change_zk_id_to_text');
+const { up } = require('./src/migrations/20250703140613_add_user_work_fields');
 
 async function runMigration() {
     try {
@@ -8,6 +8,7 @@ async function runMigration() {
         console.log('Migration completed successfully!');
     } catch (error) {
         console.error('Migration failed:', error);
+        process.exit(1);
     } finally {
         db.close();
     }
