@@ -147,23 +147,38 @@ exports.updateUser = async (req, res) => {
         }
 
         // Update user in ZK device
-        const zkReq = {
-            body: {
-                uid: Number(zk_id),
-                userid: zk_id,
-                name: `${first_name} ${last_name}`,
-                password: user.password, // Use existing password
-                role: 0,
-                cardno: 0
-            }
-        };
+        const uid = Number(zk_id);
+        const paddedZkId = zk_id.padStart(4, '0');
+        const fullName = `${first_name.trim()} ${last_name.trim()}`.substring(0, 24); // Max 24 chars
+        const userPassword = user.password || '123456'; // Default password if not provided
+        const userRole = 0; // Default role
+        const cardno = 0;
 
-        const zkResult = await createOrUpdateUser(zkReq, {});
+        console.log('Attempting to update user in ZK device:', {
+            uid,
+            userid: paddedZkId,
+            name: fullName,
+            password: userPassword.substring(0, 8), // Max 8 chars
+            role: userRole,
+            cardno
+        });
         
-        if (!zkResult || !zkResult.success) {
-            const errorMsg = `Failed to update user in ZK device: ${zkResult?.error || 'Unknown error'}`;
-            console.error(errorMsg);
-            throw new Error(errorMsg);
+        try {
+            const zkResult = await createOrUpdateUser({
+                uid,
+                userid: paddedZkId,
+                name: fullName,
+                password: userPassword.substring(0, 8), // Max 8 chars
+                role: userRole,
+                cardno
+            });
+            
+            if (!zkResult || !zkResult.success) {
+                throw new Error(zkResult?.error || 'Unknown error from ZK device');
+            }
+        } catch (zkError) {
+            console.error('Error updating user in ZK device:', zkError);
+            throw new Error(`Failed to update user in ZK device: ${zkError.message}`);
         }
 
         // Fetch the updated user to include all fields in the response
@@ -289,12 +304,49 @@ exports.createUser = async (req, res) => {
 
         const userId = Number(result.lastID);
         
-        // Return success response for database insertion only
+        // Create user in ZK device
+        const uid = Number(zk_id);
+        const paddedZkId = zk_id.padStart(4, '0');
+        const fullName = `${first_name.trim()} ${last_name.trim()}`.substring(0, 24); // Max 24 chars
+        const userPassword = password.substring(0, 8); // Max 8 chars
+        const userRole = 0; // Renamed from 'role' to avoid conflict
+        const cardno = 0;
+
+        console.log('Attempting to create user in ZK device:', {
+            uid,
+            userid: paddedZkId,
+            name: fullName,
+            password: userPassword,
+            role: userRole,
+            cardno
+        });
+        
+        try {
+            const zkResult = await createOrUpdateUser({
+                uid,
+                userid: paddedZkId,
+                name: fullName,
+                password: userPassword,
+                role: userRole,
+                cardno
+            });
+            console.log('ZK device response:', zkResult);
+            
+            if (!zkResult || !zkResult.success) {
+                throw new Error(zkResult?.error || 'Unknown error from ZK device');
+            }
+        } catch (zkError) {
+            console.error('Error creating user in ZK device:', zkError);
+            // Rollback: delete from DB if ZK device creation fails
+            await db.run('DELETE FROM users WHERE id = ?', [userId]);
+            throw new Error(`Failed to create user in ZK device: ${zkError.message}`);
+        }
+
         res.json({ 
             success: true, 
-            message: 'User created successfully', 
+            message: 'User created successfully in both database and ZK device', 
             userId, 
-            zk_id 
+            zk_id: zk_id.padStart(4, '0')
         });
     } catch (error) {
         console.error('Error creating user:', error.message);
