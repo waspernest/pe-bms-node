@@ -1,19 +1,28 @@
 const http = require("http");
 const app = require("./app");
 const { setupSocket } = require("./sockets");
+const { connect, getPool } = require('./mysql');
 
 const server = http.createServer(app);
-setupSocket(server);
+// setupSocket(server);
 
-// At the top of your server file
-const { db } = require('./db');
 const PORT = process.env.PORT || 3001;
-const database = db();
 
-// This will establish the database connection
-database.serialize(() => {
-  // Start your server after DB connection is ready
-  app.listen(PORT, () => {
+// Initialize MySQL connection pool
+const pool = connect();
+
+// Test MySQL connection on startup
+getPool().getConnection((err, connection) => {
+  if (err) {
+    console.error('Error connecting to MySQL:', err);
+    process.exit(1);
+  }
+  
+  console.log('Successfully connected to MySQL database');
+  connection.release();
+  
+  // Start the server
+  server.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
   });
 });

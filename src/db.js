@@ -1,25 +1,11 @@
-// SQLite DB setup for Node.js
-const sqlite3 = require('sqlite3').verbose();
+// Database utility functions
 const path = require('path');
 
-// Database file will be in the project root, named 'database.sqlite'
+// Database file path (kept for reference, not used for MySQL)
 const dbPath = path.resolve(__dirname, '../database.sqlite');
 
-// Singleton DB instance
-let db;
-
-function connect() {
-  if (!db) {
-    db = new sqlite3.Database(dbPath, (err) => {
-      if (err) {
-        console.error('Failed to connect to SQLite database:', err.message);
-      } else {
-        console.log('Connected to SQLite database at', dbPath);
-      }
-    });
-  }
-  return db;
-}
+// This file now only contains utility functions
+// MySQL connection is handled by mysql.js
 
 /**
  * Alter a table's structure
@@ -239,10 +225,8 @@ function deleteRecordsById(table, ids) {
 }
 
 module.exports = {
-  db: () => connect(), // Always get the singleton instance
   dbPath,
   createTable,
   alterTable,
   deleteRecordsById
 };
-

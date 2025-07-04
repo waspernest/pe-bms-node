@@ -1,44 +1,49 @@
-const db = require('../../db').db();
+const { query } = require('../../mysql');
 const bcrypt = require('bcrypt');
 
-exports.login = (req, res) => {
-    // Accept email and password from body, query, or params
-    const email = req.body.email || req.query.email || req.params.email;
-    const password = req.body.password || req.query.password || req.params.password;
+exports.login = async (req, res) => {
+    try {
+        // Accept email and password from body, query, or params
+        const email = req.body.email || req.query.email || req.params.email;
+        const password = req.body.password || req.query.password || req.params.password;
 
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
-    }
-
-    db.get('SELECT * FROM admins WHERE email = ?', [email], (err, row) => {
-        if (err) {
-            console.error('Database error:', err.message);
-            return res.status(500).json({ error: 'Database error' });
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email and password are required' });
         }
-        if (!row) {
+
+        // Query the database for the admin user
+        const [rows] = await query('SELECT * FROM admins WHERE email = ?', [email]);
+        
+        if (!rows || rows.length === 0) {
             return res.status(401).json({ error: 'Admin account not found' });
         }
+        
+        const admin = rows[0];
+        
         // Compare password using bcrypt
-        bcrypt.compare(password, row.password, (err, result) => {
-            if (err) {
-                console.error('Bcrypt error:', err.message);
-                return res.status(500).json({ error: 'Password comparison failed' });
-            }
-            if (!result) {
-                return res.status(401).json({ error: 'Invalid password' });
-            }
+        const isMatch = await bcrypt.compare(password, admin.password);
+        
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid password' });
+        }
             // Success: password matches
             res.json({ 
                 success: true, 
-                message: 'Login successful',
-                user_type: row.role,
+                message: 'Admin login successful',
+                user_type: admin.role || 'admin',
                 user: { 
-                    id: row.id, 
-                    name: row.name, 
-                    email: row.email, 
-                    role: row.role 
+                    id: admin.id, 
+                    name: admin.name,
+                    email: admin.email, 
+                    role: admin.role || 'admin'
                 } 
             });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'An error occurred during login',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
-    });
+    }
 };
