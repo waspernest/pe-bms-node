@@ -1,22 +1,27 @@
 {
   "name": "pe-bms-node",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Backend + Electron wrapper for PE-BMS",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "electron .",                   
+    "server": "node src/server.js",          
+    "electron": "electron main.js",      
+    "dev": "concurrently \"npm run server\" \"npm run electron\"" 
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "install": "^0.13.0",
-    "npm": "^11.4.2",
+    "mysql2": "^3.14.1",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.7",
     "zkh-lib": "^1.0.0"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "concurrently": "^8.2.2"
   }
 }

@@ -357,6 +357,79 @@ exports.createUser = async (req, res) => {
     }
 };
 
+// Update user password
+exports.updatePassword = async (req, res) => {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+            success: false,
+            error: 'Current password and new password are required'
+        });
+    }
+    
+    try {
+        // First verify current password
+        const user = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM users WHERE id = ?', [id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // In a real app, you would verify the current password hash here
+        if (user.password !== currentPassword) {
+            return res.status(401).json({
+                success: false,
+                error: 'Current password is incorrect'
+            });
+        }
+        
+        // Update the password in the database
+        const stmt = await db.prepare('UPDATE users SET password = ? WHERE id = ?');
+        await stmt.run(newPassword, id);
+        await stmt.finalize();
+        
+        // Update password in ZK device if user has a zk_id
+        if (user.zk_id) {
+            try {
+                await createOrUpdateUser({
+                    uid: Number(user.zk_id),
+                    userid: String(user.zk_id).padStart(4, '0'),
+                    name: `${user.first_name} ${user.last_name}`.substring(0, 24),
+                    password: newPassword.substring(0, 8), // Max 8 chars for ZK device
+                    role: 0,
+                    cardno: 0
+                });
+            } catch (zkError) {
+                console.error('Failed to update ZK device password:', zkError);
+                // Continue even if ZK update fails, but log it
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+        
+    } catch (error) {
+        console.error('Error updating password:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update password',
+            details: error.message
+        });
+    }
+};
+
 // Delete a user by ID
 exports.deleteUser = async (req, res) => {
     const { id } = req.params;

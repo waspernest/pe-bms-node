@@ -1,6 +1,16 @@
 const bcrypt = require('bcrypt');
 const { deleteRecordsById } = require("../../db");
 
+exports.testMYSQLConnection = async (req, res) => {
+    try {
+        const mysql = require("../../mysql");
+        const { results } = await mysql.query("SELECT 1");
+        res.json({ success: true, result: results[0] });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+}
+
 exports.createTestAdmin = async (req, res) => {
     const db = require("../../db").db();
     const hashedPassword = bcrypt.hashSync("testpassword", 10); // 10 salt rounds
