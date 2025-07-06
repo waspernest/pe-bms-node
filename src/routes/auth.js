@@ -1,7 +1,13 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const authController = require("../controllers/authController");
+const authController = require('../controllers/authController');
+const { authenticateToken } = require('../utils/jwt');
 
-router.post("/login", authController.login);
+// Public routes
+router.post('/login', authController.login);
+
+// Protected routes (require authentication)
+router.post('/logout', authenticateToken, authController.logout);
+router.get('/me', authenticateToken, authController.getCurrentUser);
 
 module.exports = router;

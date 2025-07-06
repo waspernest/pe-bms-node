@@ -18,4 +18,7 @@ router.use("/zk", require("./zk"));
 // Mount User routes
 router.use("/user", require("./user"));
 
+// Mount Attendance routes
+router.use("/attendance", require("./attendance"));
+
 module.exports = router;

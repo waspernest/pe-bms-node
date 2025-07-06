@@ -1,6 +1,7 @@
 //const ZKLib = require('node-zklib');
 //const ZKLib = require('zklib-js');
 const ZKLib = require('../../libs/zkh-lib'); // Local copy of the zkh-lib in src/libs/zkh-lib. DO NOT REMOVE OR CHANGE THIS LINE
+const { logAttendance } = require('../attendanceController');
 
 exports.testConnection = async (req, res) => {
     // Replace with your actual device IP and port
@@ -61,10 +62,34 @@ exports.getAttendance = async (req, res) => {
             });
         }
 
-        const formattedAttendance = attendance.data.map(log => ({
-            ...log,
-            recordTime: new Date(log.recordTime).toISOString()
-        }));
+        // Format attendance data with only required fields
+        const attendanceLogs = attendance.data.map(log => {
+            const date = new Date(log.recordTime);
+            return {
+                zk_id: log.deviceUserId, // Using deviceUserId from the log
+                log_date: date.toISOString().split('T')[0], // YYYY-MM-DD format
+                time: date.toTimeString().split(' ')[0]  // HH:MM:SS format
+            };
+        });
+
+        try {
+            // Call logAttendance with only the required fields
+            await logAttendance({ body: { attendance: attendanceLogs } }, { json: () => {} });
+        } catch (error) {
+            console.error('Error in attendance logging:', error);
+            // Don't fail the main request if attendance logging fails
+        }
+        
+        // Keep the full formatted data for the response
+        const formattedAttendance = attendance.data.map(log => {
+            const date = new Date(log.recordTime);
+            return {
+                ...log,
+                recordTime: date.toISOString(),
+                date: date.toISOString().split('T')[0],
+                time: date.toTimeString().split(' ')[0]
+            };
+        });
 
         res.json({
             success: true,
