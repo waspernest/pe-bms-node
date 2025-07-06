@@ -90,6 +90,56 @@ exports.getAllAttendance = async (req, res) => {
     }
 };
 
+exports.getUserAttendance = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // First, get user details
+        const [user] = await query('SELECT * FROM users WHERE id = ?', [userId]);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        // Then get all attendance logs for this user
+        const attendanceLogs = await query(
+            `SELECT a.* 
+             FROM attendance a 
+             WHERE a.zk_id = ? 
+             ORDER BY a.log_date DESC, a.time_in DESC`,
+            [user.zk_id]
+        );
+        
+        res.json({
+            success: true,
+            data: {
+                user: {
+                    id: user.id,
+                    zk_id: user.zk_id,
+                    first_name: user.first_name,
+                    last_name: user.last_name,
+                    job_position: user.job_position,
+                    work_schedule_start: user.work_schedule_start,
+                    work_schedule_end: user.work_schedule_end,
+                    created_at: user.created_at
+                },
+                attendance: attendanceLogs
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error getting user attendance:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch user attendance',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
 exports.logAttendance = async (req, res) => {
     try {
         const { attendance } = req.body;
