@@ -15,5 +15,6 @@ router.get("/", attendanceController.getAllAttendance);
 router.get("/:userId", attendanceController.getUserAttendance);
 router.post("/", attendanceController.logAttendance); // Manual test of logging the attendance
 router.post("/import", upload.single('file'), attendanceController.importAttendance); // Route for importing attendance data
+router.post("/add-record", attendanceController.addAttendanceRecord); // Route for adding attendance record
 
 module.exports = router;

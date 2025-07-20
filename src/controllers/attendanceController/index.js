@@ -320,7 +320,7 @@ exports.getUserAttendance = async (req, res) => {
             `SELECT a.* 
              FROM attendance a 
              WHERE a.zk_id = ? 
-             ORDER BY a.log_date DESC, a.time_in DESC`,
+             ORDER BY a.log_date ASC, a.time_in DESC`,
             [user.zk_id]
         );
         
@@ -615,6 +615,78 @@ exports.importAttendance = async (req, res) => {
         });
     }
 }
+
+/**
+ * Add a new attendance record manually
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.addAttendanceRecord = async (req, res) => {
+    const connection = await getPool().getConnection();
+    try {
+        const { zk_id, date, time_in, time_out } = req.body;
+
+        // Validate required fields
+        if (!zk_id || !date || !time_in) {
+            return res.status(400).json({
+                success: false,
+                message: 'Missing required fields: zk_id, date, and time_in are required',
+            });
+        }
+
+        // Validate date format (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(date)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid date format. Please use YYYY-MM-DD',
+            });
+        }
+
+        // Validate time format (HH:MM or HH:MM:SS)
+        const timeRegex = /^\d{2}:\d{2}(?::\d{2})?$/;
+        if (!timeRegex.test(time_in) || (time_out && !timeRegex.test(time_out))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid time format. Please use HH:MM or HH:MM:SS',
+            });
+        }
+
+        // Insert the attendance record
+        const [result] = await connection.query(
+            `INSERT INTO attendance 
+             (zk_id, log_date, time_in, time_out, log_type) 
+             VALUES (?, ?, ?, ?, 1)`,
+            [zk_id, date, time_in, time_out]
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Attendance record added successfully',
+            data: {
+                id: result.insertId
+            }
+        });
+    } catch (error) {
+        console.error('Error adding attendance record:', error);
+        
+        // Handle duplicate entry error
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({
+                success: false,
+                message: 'An attendance record already exists for this user and date',
+            });
+        }
+        
+        res.status(500).json({
+            success: false,
+            message: 'Failed to add attendance record',
+            error: error.message,
+        });
+    } finally {
+        connection.release();
+    }
+};
 
 // Export helper functions for testing (only in development)
 if (process.env.NODE_ENV === 'test') {
