@@ -141,6 +141,18 @@ exports.getUserAttendance = async (req, res) => {
 };
 
 exports.logAttendance = async (req, res) => {
+    // If res is not provided (when called internally), return a promise
+    if (!res) {
+        return new Promise((resolve, reject) => {
+            exports.logAttendance(req, {
+                json: (data) => resolve(data),
+                status: () => ({
+                    json: (err) => reject(err)
+                })
+            });
+        });
+    }
+
     try {
         const { attendance } = req.body;
         
@@ -165,7 +177,7 @@ exports.logAttendance = async (req, res) => {
             
             try {
                 // Find all attendance records for this user on this date
-                const records = await query(
+                const recordsResult = await query(
                     `SELECT id, time_in, time_out 
                      FROM attendance 
                      WHERE zk_id = ? AND log_date = ?
@@ -173,7 +185,10 @@ exports.logAttendance = async (req, res) => {
                     [zk_id, log_date]
                 );
                 
-                let action, result;
+                // Ensure records is always an array
+                const records = Array.isArray(recordsResult) ? recordsResult : [];
+                
+                let action;
                 let recordUpdated = false;
                 
                 // Check if there's an open record (time_in without time_out)
@@ -183,19 +198,37 @@ exports.logAttendance = async (req, res) => {
                     // If there's an open record and the new time is after the time_in
                     if (time > openRecord.time_in) {
                         // Update the time_out of the open record
-                        [result] = await query(
+                        const updateResult = await query(
                             'UPDATE attendance SET time_out = ?, log_type = 1 WHERE id = ?',
                             [time, openRecord.id]
                         );
-                        action = 'time_out';
-                        results.push({ 
-                            zk_id, 
-                            log_date, 
-                            time, 
-                            action, 
-                            id: openRecord.id,
-                            log_type: 1 
-                        });
+                        
+                        if (!updateResult) {
+                            throw new Error('Failed to update attendance record');
+                        }
+                        
+                        // Get the updated record with user details
+                        const updatedRecords = await query(
+                            `SELECT a.*, u.first_name, u.last_name 
+                             FROM attendance a 
+                             LEFT JOIN users u ON a.zk_id = u.zk_id 
+                             WHERE a.id = ?`,
+                            [openRecord.id]
+                        );
+                        
+                        if (updatedRecords && updatedRecords.length > 0) {
+                            const updatedRecord = updatedRecords[0];
+                            action = 'time_out';
+                            results.push({ 
+                                ...updatedRecord,
+                                action,
+                                time_out: time,
+                                time_in: updatedRecord.time_in,
+                                log_date: updatedRecord.log_date
+                            });
+                        } else {
+                            throw new Error('Failed to retrieve updated record');
+                        }
                         recordUpdated = true;
                     } else {
                         // If the new time is before the open record's time_in, it's an error
@@ -209,19 +242,36 @@ exports.logAttendance = async (req, res) => {
                     const lastRecord = records[records.length - 1];
                     if (!lastRecord || (lastRecord.time_out && time > lastRecord.time_out)) {
                         // Create a new time_in record with log_type = 1 (device log)
-                        [result] = await query(
+                        const insertResult = await query(
                             'INSERT INTO attendance (zk_id, log_date, time_in, time_out, log_type) VALUES (?, ?, ?, NULL, 1)',
                             [zk_id, log_date, time]
                         );
-                        action = 'time_in';
-                        results.push({ 
-                            zk_id, 
-                            log_date, 
-                            time, 
-                            action, 
-                            id: result.insertId,
-                            log_type: 1 
-                        });
+                        
+                        if (!insertResult || !insertResult.insertId) {
+                            throw new Error('Failed to create attendance record');
+                        }
+                        
+                        // Get the newly created record with user details
+                        const userRecords = await query(
+                            `SELECT a.*, u.first_name, u.last_name 
+                             FROM attendance a 
+                             LEFT JOIN users u ON a.zk_id = u.zk_id 
+                             WHERE a.id = ?`,
+                            [insertResult.insertId]
+                        );
+                        
+                        if (userRecords && userRecords.length > 0) {
+                            const newRecord = userRecords[0];
+                            action = 'time_in';
+                            results.push({ 
+                                ...newRecord,
+                                action,
+                                time_in: time,
+                                time_out: null
+                            });
+                        } else {
+                            throw new Error('Failed to retrieve created record');
+                        }
                     } else {
                         // If we get here, the time doesn't make sense (before last time_out)
                         throw new Error('Invalid time sequence');
@@ -249,6 +299,63 @@ exports.logAttendance = async (req, res) => {
         res.status(500).json({ 
             success: false,
             error: 'Failed to log attendance',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * Import attendance data from uploaded file directly from memory
+ * @param {Object} req - Express request object with file in req.files
+ * @param {Object} res - Express response object
+ */
+exports.importAttendance = async (req, res) => {
+    try {
+        if (!req.files || !req.files.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'No file uploaded or invalid file format'
+            });
+        }
+        
+        const file = req.files.file;
+        console.log('File info:', {
+            name: file.name,
+            size: file.size,
+            mimetype: file.mimetype,
+            encoding: file.encoding
+        });
+        
+        // Access the file data directly
+        const fileBuffer = file.data;
+        console.log('File buffer length:', fileBuffer.length);
+        
+        // Process the file from memory buffer
+        console.log('Processing file...');
+        const attendanceData = await processAttendanceFile(fileBuffer, file.name);
+        
+        console.log('Processed attendance data:', attendanceData);
+        
+        // Temporarily commented out for testing
+        // const result = await saveAttendanceData(attendanceData);
+        
+        res.json({
+            success: true,
+            message: 'File processed successfully (not saved to database)',
+            fileInfo: {
+                name: file.name,
+                size: file.size,
+                recordsProcessed: attendanceData ? attendanceData.length : 0
+            },
+            // insertedCount: result?.insertedCount || 0,
+            sampleData: attendanceData ? attendanceData.slice(0, 3) : [] // Return first 3 records as sample
+        });
+        
+    } catch (error) {
+        console.error('Error importing attendance:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to import attendance',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }

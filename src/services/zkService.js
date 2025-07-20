@@ -77,11 +77,79 @@ async function pollLogsAndEmit(io) {
             // Save the latest timestamp to file
             await saveLastTimestamp(lastTimestamp);
             
-            // Emit new logs
-            io.emit('new-scan', newLogs);
-            console.log(`📢 Emitted ${newLogs.length} new log(s). Latest timestamp: ${lastTimestamp.toISOString()}`);
-            
-            return newLogs;
+            // Format logs for database with timestamps
+            const { logAttendance } = require('../controllers/attendanceController');
+            const attendanceLogs = newLogs.map(log => {
+                const date = new Date(log.recordTime);
+                const logDate = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+                const logTime = date.toTimeString().split(' ')[0]; // HH:MM:SS format
+                
+                return {
+                    zk_id: log.deviceUserId.toString(),
+                    log_date: logDate,
+                    time: logTime,
+                    recordTime: log.recordTime // Keep original timestamp for reference
+                };
+            });
+
+            // Log what we're about to save
+            console.log('\n📋 Processing new logs:', {
+                count: newLogs.length,
+                logs: attendanceLogs,
+                latestTimestamp: lastTimestamp.toISOString()
+            });
+
+            try {
+                // Import the logAttendance function
+                const { logAttendance } = require('../controllers/attendanceController');
+                
+                // Call logAttendance directly (it will return a promise)
+                const response = await logAttendance({ 
+                    body: { attendance: attendanceLogs } 
+                });
+
+                if (response?.success && response?.results) {
+                    // Format the response to match the expected structure
+                    const formattedLogs = response.results.map(log => ({
+                        id: log.id,
+                        zk_id: log.zk_id,
+                        log_date: log.log_date,
+                        time_in: log.time_in,
+                        time_out: log.time_out || null,
+                        log_type: log.log_type || 1,
+                        first_name: log.first_name || 'Unknown',
+                        last_name: log.last_name || '',
+                        action: log.action || (log.time_out ? 'time_out' : 'time_in'),
+                        // Add a display name for convenience
+                        display_name: `${log.first_name || 'Unknown'} ${log.last_name || ''}`.trim()
+                    }));
+
+                    console.log('✅ Logged attendance:', {
+                        success: response.success,
+                        processed: response.processed,
+                        results: formattedLogs.length
+                    });
+                    
+                    // Emit the formatted logs to clients
+                    io.emit('new-scan', formattedLogs);
+                    console.log(`📢 Emitted ${formattedLogs.length} processed log(s) to clients. Latest: ${lastTimestamp.toISOString()}`);
+                    return formattedLogs;
+                } else {
+                    throw new Error('Invalid response format from logAttendance');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error in attendance processing:', error.message);
+                if (error.response) {
+                    console.error('Error response:', error.response.data);
+                }
+                // Emit error to clients if needed
+                io.emit('attendance-error', { 
+                    error: 'Failed to process attendance',
+                    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+                });
+                return [];
+            }
         }
         
         return [];
