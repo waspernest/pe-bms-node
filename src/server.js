@@ -23,7 +23,7 @@ app.use('/api', routes);
 
 // Socket Connection - Polling every 10 seconds
 const server = http.createServer(app);
-setupSocket(server);
+//setupSocket(server);
 
 const PORT = process.env.PORT || 3001;
 

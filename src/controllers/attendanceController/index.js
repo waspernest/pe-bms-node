@@ -1,6 +1,12 @@
 const { getPool } = require('../../mysql');
+const xlsx = require('xlsx');
+const { Readable } = require('stream');
+const csv = require('csv-parser');
 
-// Helper function to get a connection and run a query
+/**
+ * Helper function to get a connection and run a query
+ * @private
+ */
 const query = async (sql, params = []) => {
     const connection = await getPool().getConnection();
     try {
@@ -11,6 +17,206 @@ const query = async (sql, params = []) => {
     }
 };
 
+/**
+ * Format Excel row data
+ * @private
+ * @param {Object} row - Raw row data from Excel
+ * @returns {Object} Formatted row data
+ */
+const formatExcelRow = (row) => {
+    const formattedRow = { ...row };
+    
+    // Format LOG_DATE if it exists
+    if (formattedRow.LOG_DATE) {
+        if (formattedRow.LOG_DATE instanceof Date) {
+            formattedRow.LOG_DATE = formattedRow.LOG_DATE.toISOString().split('T')[0];
+        } else if (typeof formattedRow.LOG_DATE === 'number') {
+            const date = new Date((formattedRow.LOG_DATE - 25569) * 86400 * 1000);
+            formattedRow.LOG_DATE = date.toISOString().split('T')[0];
+        }
+    }
+    
+    // Format TIME_IN and TIME_OUT if they exist
+    ['TIME_IN', 'TIME_OUT'].forEach(field => {
+        if (formattedRow[field] !== undefined) {
+            if (typeof formattedRow[field] === 'number') {
+                const totalSeconds = Math.round(formattedRow[field] * 86400);
+                const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+                const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+                const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+                formattedRow[field] = `${hours}:${minutes}:${seconds}`;
+            }
+        }
+    });
+    
+    return formattedRow;
+}
+
+/**
+ * Process CSV file buffer
+ * @private
+ * @param {Buffer} buffer - CSV file buffer
+ * @returns {Promise<Array>} Parsed CSV data
+ */
+const processCsvFile = async (buffer) => {
+    return new Promise((resolve, reject) => {
+        const results = [];
+        const bufferStream = new Readable();
+        bufferStream.push(buffer);
+        bufferStream.push(null);
+        
+        bufferStream
+            .pipe(csv())
+            .on('data', (data) => results.push(data))
+            .on('end', () => resolve(results))
+            .on('error', reject);
+    });
+}
+    
+/**
+ * Process Excel file buffer
+ * @private
+ * @param {Buffer} buffer - Excel file buffer
+ * @returns {Promise<Array>} Parsed Excel data
+ */
+const processExcelFile = async (buffer) => {
+    const workbook = xlsx.read(buffer, { 
+        type: 'buffer',
+        cellDates: true,
+        cellText: true,
+        cellNF: true,
+        dateNF: 'yyyy-mm-dd',
+        raw: false
+    });
+    
+    const sheetName = workbook.SheetNames[0];
+    const ws = workbook.Sheets[sheetName];
+    
+    const data = xlsx.utils.sheet_to_json(ws, {
+        raw: false,
+        dateNF: 'yyyy-mm-dd',
+        defval: ''
+    });
+    
+    return data.map(row => formatExcelRow(row));
+}
+
+/**
+ * Import data to database with duplicate checking
+ * @private
+ * @param {Array} rows - Rows to import
+ * @returns {Promise<Object>} Import results
+ */
+const importToDatabase = async (rows) => {
+    const insertedRows = [];
+    const skippedRows = [];
+    const errors = [];
+    
+    for (const row of rows) {
+        try {
+            const { ZK_ID, LOG_DATE, TIME_IN, TIME_OUT } = row;
+            
+            if (!ZK_ID || !LOG_DATE || !TIME_IN) {
+                errors.push({
+                    row,
+                    error: 'Missing required fields (ZK_ID, LOG_DATE, and TIME_IN are required)'
+                });
+                continue;
+            }
+            
+            // Check for existing record with the same zk_id, log_date, and time_in
+            const existingRecord = await query(
+                `SELECT id FROM attendance 
+                WHERE zk_id = ? 
+                AND log_date = ? 
+                AND time_in = ?`,
+                [ZK_ID, LOG_DATE, TIME_IN]
+            );
+
+            if (existingRecord.length > 0) {
+                // Record with same zk_id, date, and time_in already exists
+                skippedRows.push({
+                    ...row,
+                    id: existingRecord[0].id,
+                    status: 'skipped',
+                    reason: 'A record with the same employee, date, and time already exists'
+                });
+                continue;
+            }
+
+            // Check for potential duplicate (same employee, date, and close times)
+            const potentialDuplicate = await query(
+                `SELECT id FROM attendance 
+                WHERE zk_id = ? 
+                AND log_date = ? 
+                AND ABS(TIMESTAMPDIFF(MINUTE, CONCAT(log_date, ' ', time_in), ?)) <= 5`,
+                [ZK_ID, LOG_DATE, `${LOG_DATE} ${TIME_IN}`]
+            );
+
+            if (potentialDuplicate.length > 0) {
+                skippedRows.push({
+                    ...row,
+                    id: potentialDuplicate[0].id,
+                    status: 'skipped',
+                    reason: 'A similar record already exists within 5 minutes'
+                });
+                continue;
+            }
+
+            // Insert new record if no duplicates found
+            const result = await query(
+                `INSERT INTO attendance 
+                (zk_id, log_date, time_in, time_out, log_type, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 0, NOW(), NOW())`,
+                [ZK_ID, LOG_DATE, TIME_IN, TIME_OUT || null]
+            );
+            
+            insertedRows.push({
+                ...row,
+                id: result.insertId,
+                status: 'inserted'
+            });
+            
+        } catch (error) {
+            console.error('Error inserting row:', error);
+            errors.push({
+                row,
+                error: error.message,
+                status: 'error'
+            });
+        }
+    }
+    
+    return { 
+        insertedRows, 
+        skippedRows,
+        errors,
+        totalProcessed: rows.length,
+        totalInserted: insertedRows.length,
+        totalSkipped: skippedRows.length,
+        totalFailed: errors.length
+    };
+}
+
+/**
+ * Generate result message for import
+ * @private
+ * @param {Object} params - Parameters object
+ * @param {Array} params.insertedRows - Successfully inserted rows
+ * @param {Array} params.errors - Errors encountered
+ * @returns {string} Result message
+ */
+const generateResultMessage = ({ insertedRows, errors }) => {
+    const successMessage = `Successfully processed ${insertedRows.length} records`;
+    const errorMessage = errors.length > 0 ? `, ${errors.length} failed` : '';
+    return successMessage + errorMessage;
+}
+
+/**
+ * Get all attendance records with pagination and filtering
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getAllAttendance = async (req, res) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
@@ -90,6 +296,11 @@ exports.getAllAttendance = async (req, res) => {
     }
 };
 
+/**
+ * Get attendance records for a specific user
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.getUserAttendance = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -140,6 +351,11 @@ exports.getUserAttendance = async (req, res) => {
     }
 };
 
+/**
+ * Log attendance for users
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.logAttendance = async (req, res) => {
     // If res is not provided (when called internally), return a promise
     if (!res) {
@@ -302,61 +518,111 @@ exports.logAttendance = async (req, res) => {
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
-};
+}
 
 /**
- * Import attendance data from uploaded file directly from memory
- * @param {Object} req - Express request object with file in req.files
+ * Import attendance data from uploaded file
+ * @param {Object} req - Express request object with file in req.file
+ * @param {Object} res - Express response object
+ */
+/**
+ * Import attendance data from uploaded file
+ * @param {Object} req - Express request object with file in req.file
  * @param {Object} res - Express response object
  */
 exports.importAttendance = async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    console.log('File received in memory:', {
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+    });
+    
     try {
-        if (!req.files || !req.files.file) {
-            return res.status(400).json({
-                success: false,
-                error: 'No file uploaded or invalid file format'
-            });
+        let data;
+        if (req.file.mimetype.includes('excel') || 
+            req.file.originalname.endsWith('.xlsx') || 
+            req.file.originalname.endsWith('.xls')) {
+            
+            // Process Excel file
+            console.log('Processing Excel file...');
+            data = await processExcelFile(req.file.buffer);
+            
+        } else if (req.file.mimetype.includes('csv') || 
+                  req.file.originalname.endsWith('.csv')) {
+            
+            // Process CSV file
+            console.log('Processing CSV file...');
+            data = await processCsvFile(req.file.buffer);
+            
+        } else {
+            throw new Error('Unsupported file type. Please upload a CSV or Excel file.');
+        }
+
+        // Import data to database
+        console.log(`Processing ${data.length} records...`);
+        const { 
+            insertedRows, 
+            skippedRows, 
+            errors, 
+            totalProcessed,
+            totalInserted,
+            totalSkipped,
+            totalFailed 
+        } = await importToDatabase(data);
+        
+        // Determine status based on results
+        let status = 'success';
+        if (totalInserted === 0 && totalSkipped > 0) {
+            status = 'warning';
+        } else if (totalFailed > 0) {
+            status = totalInserted > 0 ? 'partial' : 'error';
         }
         
-        const file = req.files.file;
-        console.log('File info:', {
-            name: file.name,
-            size: file.size,
-            mimetype: file.mimetype,
-            encoding: file.encoding
-        });
+        // Simple success message
+        const message = 'Import process successful';
         
-        // Access the file data directly
-        const fileBuffer = file.data;
-        console.log('File buffer length:', fileBuffer.length);
+        // Build response with counts
+        const response = {
+            success: status !== 'error',
+            status,
+            filename: req.file.originalname,
+            inserted: totalInserted,
+            skipped: totalSkipped,
+            failed: totalFailed,
+            total: totalProcessed,
+            message
+        };
         
-        // Process the file from memory buffer
-        console.log('Processing file...');
-        const attendanceData = await processAttendanceFile(fileBuffer, file.name);
+        // Include errors for debugging if any
+        if (errors.length > 0) {
+            response.errors = errors;
+        }
         
-        console.log('Processed attendance data:', attendanceData);
-        
-        // Temporarily commented out for testing
-        // const result = await saveAttendanceData(attendanceData);
-        
-        res.json({
-            success: true,
-            message: 'File processed successfully (not saved to database)',
-            fileInfo: {
-                name: file.name,
-                size: file.size,
-                recordsProcessed: attendanceData ? attendanceData.length : 0
-            },
-            // insertedCount: result?.insertedCount || 0,
-            sampleData: attendanceData ? attendanceData.slice(0, 3) : [] // Return first 3 records as sample
-        });
+        return res.json(response);
         
     } catch (error) {
-        console.error('Error importing attendance:', error);
-        res.status(500).json({ 
-            success: false,
-            error: 'Failed to import attendance',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        console.error('Error processing file:', error);
+        return res.status(500).json({ 
+            success: false, 
+            error: 'Error processing file',
+            message: error.message,
+            inserted: 0,
+            failed: 0
         });
     }
-};
+}
+
+// Export helper functions for testing (only in development)
+if (process.env.NODE_ENV === 'test') {
+    module.exports._test = {
+        formatExcelRow,
+        processCsvFile,
+        processExcelFile,
+        importToDatabase,
+        generateResultMessage
+    };
+}
