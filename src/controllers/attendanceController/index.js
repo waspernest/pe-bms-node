@@ -335,6 +335,7 @@ exports.getUserAttendance = async (req, res) => {
                     job_position: user.job_position,
                     work_schedule_start: user.work_schedule_start,
                     work_schedule_end: user.work_schedule_end,
+                    rest_day: user.rest_day,
                     created_at: user.created_at
                 },
                 attendance: attendanceLogs

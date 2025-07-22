@@ -82,6 +82,7 @@ exports.updateUser = async (req, res) => {
         job_position,
         work_schedule_start,
         work_schedule_end,
+        rest_day,
         has_fingerprint
     } = req.body;
     
@@ -158,6 +159,11 @@ exports.updateUser = async (req, res) => {
         if (work_schedule_end) {
             updateFields.push('work_schedule_end = ?');
             updateValues.push(work_schedule_end);
+        }
+        
+        if (rest_day) {
+            updateFields.push('rest_day = ?');
+            updateValues.push(rest_day);
         }
         
         if (has_fingerprint !== undefined) {
@@ -259,16 +265,23 @@ exports.updateUser = async (req, res) => {
 
 // Create a new user in the database
 exports.createUser = async (req, res) => {
+    // Destructure with default values that handle empty strings
     const { 
         first_name, 
         last_name, 
         zk_id, 
         password, 
         job_position,
-        work_schedule_start = '09:00',
-        work_schedule_end = '18:00',
+        work_schedule_start,
+        work_schedule_end,
+        rest_day,
         has_fingerprint = false
     } = req.body;
+    
+    // Apply defaults if values are empty or undefined
+    const workStart = work_schedule_start || '09:00';
+    const workEnd = work_schedule_end || '18:00';
+    const restDay = rest_day || 'Sunday';
     
     const role = 0; // Default role
     
@@ -309,30 +322,35 @@ exports.createUser = async (req, res) => {
             throw new Error(`ZK ID ${zk_id} is already in use`);
         }
 
-        // Insert user into database
-        const result = await query(
+        // Hash the password before storing
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert the new user into the database
+        const [result] = await query(
             `INSERT INTO users (
                 first_name, 
                 last_name, 
                 zk_id, 
                 password, 
                 role,
-                job_position,
-                work_schedule_start,
+                job_position, 
+                work_schedule_start, 
                 work_schedule_end,
+                rest_day,
                 has_fingerprint,
                 created_at,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
             [
-                first_name.trim(), 
-                last_name.trim(), 
-                zk_id.padStart(4, '0'), // Ensure 4-digit format
-                password, 
+                first_name.trim(),
+                last_name.trim(),
+                zk_id.padStart(4, '0'),
+                hashedPassword,
                 role,
-                job_position ? job_position.trim() : null,
-                work_schedule_start,
-                work_schedule_end,
+                job_position,
+                workStart,
+                workEnd,
+                restDay,
                 has_fingerprint ? 1 : 0
             ]
         );
