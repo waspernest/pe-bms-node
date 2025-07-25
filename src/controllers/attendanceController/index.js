@@ -2,6 +2,20 @@ const { getPool } = require('../../mysql');
 const xlsx = require('xlsx');
 const { Readable } = require('stream');
 const csv = require('csv-parser');
+const { format } = require('date-fns');
+const { utcToZonedTime } = require('date-fns-tz');
+
+const timeZone = 'Asia/Manila';
+
+const { 
+    isRestDay, 
+    getHolidayInfo, 
+    calculateSummary,
+    calculateWorkHours,
+    toMYSQLDateTime,
+    toMYSQLDate,
+    formatTo12Hour
+} = require('../../utils/controllers/attendance/attendanceHelper');
 
 /**
  * Helper function to get a connection and run a query
@@ -15,6 +29,21 @@ const query = async (sql, params = []) => {
     } finally {
         connection.release();
     }
+};
+
+const toPHDateString = (date) => {
+    if (!date) return null;
+    
+    // Create date object from input
+    const d = new Date(date);
+    
+    // Get date components in local time
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    
+    // Return in YYYY-MM-DD format
+    return `${year}-${month}-${day}`;
 };
 
 /**
@@ -301,52 +330,153 @@ exports.getAllAttendance = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+// exports.getUserAttendance = async (req, res) => {
+//     try {
+//         const { userId } = req.params;
+        
+//         // First, get user details
+//         const [user] = await query('SELECT * FROM users WHERE id = ?', [userId]);
+        
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 error: 'User not found'
+//             });
+//         }
+        
+//         // Then get all attendance logs for this user
+//         const attendanceLogs = await query(
+//             `SELECT a.* 
+//              FROM attendance a 
+//              WHERE a.zk_id = ? 
+//              ORDER BY a.log_date ASC, a.time_in DESC`,
+//             [user.zk_id]
+//         );
+        
+//         res.json({
+//             success: true,
+//             data: {
+//                 user: {
+//                     id: user.id,
+//                     zk_id: user.zk_id,
+//                     first_name: user.first_name,
+//                     last_name: user.last_name,
+//                     job_position: user.job_position,
+//                     work_schedule_start: user.work_schedule_start,
+//                     work_schedule_end: user.work_schedule_end,
+//                     rest_day: user.rest_day,
+//                     created_at: user.created_at
+//                 },
+//                 attendance: attendanceLogs
+//             }
+//         });
+        
+//     } catch (error) {
+//         console.error('Error getting user attendance:', error);
+//         res.status(500).json({ 
+//             success: false,
+//             error: 'Failed to fetch user attendance',
+//             details: process.env.NODE_ENV === 'development' ? error.message : undefined
+//         });
+//     }
+// };
+
 exports.getUserAttendance = async (req, res) => {
+    console.log('1. Request received', { params: req.params, query: req.query });
+    const { userId } = req.params;
+    const { year, month } = req.query;
+    
     try {
-        const { userId } = req.params;
-        
-        // First, get user details
+        console.log('2. Fetching user...');
         const [user] = await query('SELECT * FROM users WHERE id = ?', [userId]);
-        
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                error: 'User not found'
-            });
-        }
-        
-        // Then get all attendance logs for this user
-        const attendanceLogs = await query(
-            `SELECT a.* 
-             FROM attendance a 
-             WHERE a.zk_id = ? 
-             ORDER BY a.log_date ASC, a.time_in DESC`,
-            [user.zk_id]
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Calculate month boundaries
+        const startDate = new Date(Date.UTC(parseInt(year), parseInt(month) - 1, 1));
+        const endDate = new Date(Date.UTC(parseInt(year), parseInt(month), 0)); // First day of the next month
+
+        const formattedStartDate = toMYSQLDate(startDate);
+        const formattedEndDate = toMYSQLDate(endDate);
+
+        console.log('3. Date range:', { formattedStartDate, formattedEndDate });
+
+        // Get attendance for the month
+        console.log('4. Fetching attendance...');
+        const attendance = await query(
+            `SELECT * FROM attendance 
+             WHERE zk_id = ? 
+             AND log_date BETWEEN ? AND ? 
+             ORDER BY log_date ASC`,
+            [user.zk_id, formattedStartDate, formattedEndDate]
         );
+        console.log('5. Found attendance records:', attendance.length);
+
+        // Create map of attendance by date with consistent date string format (YYYY-MM-DD)
+        const attendanceByDate = {};
+        attendance.forEach(record => {
+            // Convert database date to local date string
+            const recordDate = new Date(record.log_date);
+            const dateKey = toPHDateString(recordDate);
+            attendanceByDate[dateKey] = record;
+        });
+
+        // Generate all dates in month
+        const allDates = [];
+        const current = new Date(startDate);
+
+        while (current <= endDate) {
+            const dateStr = toPHDateString(current);
+            const isRest = isRestDay(current, user.rest_day);
+            const holidayInfo = getHolidayInfo(current);
+            const hasAttendance = !!attendanceByDate[dateStr];
+            
+            const dateData = {
+                date: dateStr,
+                is_rest_day: isRest,
+                is_editable: !hasAttendance, // true if no attendance record exists
+                schedule: `${formatTo12Hour(user.work_schedule_start)} - ${formatTo12Hour(user.work_schedule_end)}`,
+                ...getHolidayInfo(current),
+                ...(hasAttendance ? {
+                    ...attendanceByDate[dateStr],
+                    is_editable: false, // explicitly set to false for existing records
+                    ...(calculateWorkHours(
+                        attendanceByDate[dateStr].time_in,
+                        attendanceByDate[dateStr].time_out,
+                        user.work_schedule_start,
+                        user.work_schedule_end
+                    ) || {})
+                } : {})
+            };
         
+            allDates.push(dateData);
+            current.setDate(current.getDate() + 1);
+        }
+
+        const summary = calculateSummary(allDates);
+
         res.json({
             success: true,
             data: {
                 user: {
+                    // user details
                     id: user.id,
                     zk_id: user.zk_id,
                     first_name: user.first_name,
                     last_name: user.last_name,
                     job_position: user.job_position,
                     work_schedule_start: user.work_schedule_start,
-                    work_schedule_end: user.work_schedule_end,
-                    rest_day: user.rest_day,
-                    created_at: user.created_at
+                    work_schedule_end: user.work_schedule_end
                 },
-                attendance: attendanceLogs
+                attendance: allDates,
+                summary
             }
         });
-        
+
     } catch (error) {
-        console.error('Error getting user attendance:', error);
+        console.error('Error in getUserAttendance:', error);
         res.status(500).json({ 
-            success: false,
-            error: 'Failed to fetch user attendance',
+            success: false, 
+            error: 'Internal server error',
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
@@ -626,7 +756,8 @@ exports.addAttendanceRecord = async (req, res) => {
     const connection = await getPool().getConnection();
     try {
         const { zk_id, date, time_in, time_out } = req.body;
-
+        const is_reliever = 1;
+        
         // Validate required fields
         if (!zk_id || !date || !time_in) {
             return res.status(400).json({
@@ -656,9 +787,9 @@ exports.addAttendanceRecord = async (req, res) => {
         // Insert the attendance record
         const [result] = await connection.query(
             `INSERT INTO attendance 
-             (zk_id, log_date, time_in, time_out, log_type) 
-             VALUES (?, ?, ?, ?, 1)`,
-            [zk_id, date, time_in, time_out]
+             (zk_id, log_date, time_in, time_out, is_reliever, log_type) 
+             VALUES (?, ?, ?, ?, 1, 1)`,
+            [zk_id, date, time_in, time_out, is_reliever]
         );
 
         res.status(201).json({
