@@ -1,47 +1,29 @@
 {
-  "name": "pe-bms-node",
-  "version": "1.0.0",
-  "description": "Backend + Electron wrapper for PE-BMS",
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "server": "node src/server.js",
-    "electron": "electron main.js",
-    "dev": "concurrently \"npm run server\" \"npm run electron\""
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "bcryptjs": "^3.0.2",
-    "cors": "^2.8.5",
-    "csv-parser": "^3.2.0",
-    "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0",
-    "date-holidays": "^3.24.4",
-    "dotenv": "^17.2.1",
-    "electron-store": "^10.1.0",
-    "express": "^5.1.0",
-    "express-fileupload": "^1.5.2",
-    "jsonwebtoken": "^9.0.2",
-    "multer": "^2.0.2",
-    "mysql2": "^3.14.2",
-    "pkg": "^5.8.1",
-    "socket.io": "^4.8.1",
-    "xlsx": "^0.18.5",
-    "zkh-lib": "^1.0.0"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.2",
-    "electron": "^37.2.0"
-  },
-  "pkg": {
-    "scripts": [
-      "src/server.js"
-    ],
-    "assets": [
-      "node_modules/**/*",
-      "src/libs/zkh-lib/src/logs/log.js"
-    ]
+    "name": "pe-bms-backend",
+    "version": "1.0.0", 
+    "description": "PE-BMS Backend Server",
+    "main": "src/server.js",
+    "scripts": {
+      "start": "node src/server.js"
+    },
+    "dependencies": {
+      "express": "^5.1.0",
+      "cors": "^2.8.5", 
+      "mysql2": "^3.14.2",
+      "socket.io": "^4.8.1",
+      "dotenv": "^17.2.1",
+      "express-fileupload": "^1.5.2",
+      "multer": "^2.0.2",
+      "jsonwebtoken": "^9.0.2",
+      "bcryptjs": "^3.0.2",
+      "csv-parser": "^3.2.0",
+      "xlsx": "^0.18.5",
+      "date-fns": "^4.1.0",
+      "date-fns-tz": "^3.2.0",
+      "date-holidays": "^3.24.4",
+      "zkh-lib": "^1.0.0"
+    },
+    "engines": {
+      "node": "18.x"
+    }
   }
-}
