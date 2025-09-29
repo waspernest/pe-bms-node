@@ -1,9 +1,9 @@
 {
   "initial_setup": false,
-  "db_host": "127.0.0.1",
-  "db_name": "pe_bms",
-  "db_user": "root",
-  "db_password": "",
+  "db_host": "66.29.141.181",
+  "db_name": "arnimcsr_pe_bms",
+  "db_user": "arnimcsr_jpauser",
+  "db_password": "rERf7e?n?5oa",
   "zk_host": "",
   "zk_port": "4370",  
   "zk_timeout": "5000",
