@@ -1,6 +1,6 @@
 {
   "initial_setup": false,
-  "db_host": "66.29.141.181",
+  "db_host": "localhost",
   "db_name": "arnimcsr_pe_bms",
   "db_user": "arnimcsr_jpauser",
   "db_password": "rERf7e?n?5oa",
