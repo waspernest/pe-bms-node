@@ -1,11 +1,11 @@
 {
   "initial_setup": false,
-  "db_host": "127.0.0.1",
+  "db_host": "192.168.18.8",
   "db_name": "pe_bms",
-  "db_user": "root",
-  "db_password": "",
+  "db_user": "jpa_user",
+  "db_password": "Password123!!",
   "zk_host": "",
-  "zk_port": "4370",  
+  "zk_port": "4370",
   "zk_timeout": "5000",
   "zk_read_timeout": 10000,
   "zk_ip": "192.168.18.100"

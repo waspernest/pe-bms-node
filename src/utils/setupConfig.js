@@ -7,7 +7,7 @@ if (process.pkg) {
   configPath = path.join(path.dirname(process.execPath), 'config.json');
 } else {
   // Running via `node src/server.js` in development
-  configPath = path.join(__dirname, '../../../backend-server/config.json');
+  configPath = path.join(__dirname, '../../config.json');
 }
 
 // Default config in case the file doesn't exist
