@@ -1,9 +1,9 @@
 {
   "initial_setup": false,
   "db_host": "localhost",
-  "db_name": "arnimcsr_pe_bms",
-  "db_user": "arnimcsr_jpauser",
-  "db_password": "rERf7e?n?5oa",
+  "db_name": "test_db",
+  "db_user": "test_user",
+  "db_password": "Password123!!",
   "zk_host": "",
   "zk_port": "4370",  
   "zk_timeout": "5000",
