@@ -1,13 +1,24 @@
 const mysql = require('mysql2/promise');
 const { getConfig } = require('./utils/setupConfig');
+require('dotenv').config();
 
 // MySQL connection configuration
 const config = getConfig();
+// const dbConfig = {
+//     host: config.db_host,
+//     user: config.db_user,
+//     password: config.db_password,
+//     database: config.db_name,
+//     waitForConnections: true,
+//     connectionLimit: 10,
+//     queueLimit: 0
+// };
+
 const dbConfig = {
-    host: config.db_host,
-    user: config.db_user,
-    password: config.db_password,
-    database: config.db_name,
+    host: (process.env.APP_ENV === 'development' || !process.env.DB_HOST) ? "127.0.0.1" : process.env.DB_HOST,
+    user: (process.env.APP_ENV === 'development' || !process.env.DB_USER) ? "root" : process.env.DB_USER,
+    password: (process.env.APP_ENV === 'development' || !process.env.DB_PASSWORD) ? "" : process.env.DB_PASSWORD,
+    database: (process.env.APP_ENV === 'development' || !process.env.DB_NAME) ? "pe_bms" : process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -24,6 +35,7 @@ function connect() {
     if (!pool) {
         pool = mysql.createPool(dbConfig);
         console.log('MySQL connection pool created');
+        console.log(dbConfig);
     }
     return pool;
 }

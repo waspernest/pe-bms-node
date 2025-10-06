@@ -424,7 +424,7 @@ exports.createUser = async (req, res) => {
                 has_fingerprint,
                 created_at,
                 updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
             [
                 first_name.trim(),
                 last_name.trim(),
