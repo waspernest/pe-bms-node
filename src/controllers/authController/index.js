@@ -30,12 +30,25 @@ exports.login = async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
+        // Get zk_config data for this admin
+        let zkConfig = null;
+        try {
+            const [zkRows] = await connection.query('SELECT * FROM zk_config WHERE aid = ?', [admin.id]);
+            if (zkRows && zkRows.length > 0) {
+                zkConfig = zkRows[0];
+            }
+        } catch (zkError) {
+            console.error('Error fetching zk_config:', zkError);
+            // Don't fail login if zk_config query fails, just continue without it
+        }
+
         // Return only necessary user data
         const userData = {
             id: admin.id,
             email: admin.email,
             role: admin.role || 'admin',
-            name: admin.name || ''
+            name: admin.name || '',
+            zk_config: zkConfig
         };
 
         res.json({ 

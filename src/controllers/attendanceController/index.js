@@ -1,3 +1,5 @@
+const fs = require('fs').promises;
+const path = require('path');
 const { getPool } = require('../../mysql');
 const xlsx = require('xlsx');
 const { Readable } = require('stream');
@@ -28,8 +30,6 @@ const {
  * Convert date to local timezone format for database storage
  * @private
  * @param {string} dateStr - Date string in YYYY-MM-DD format
- * @returns {string} Date string in database format
- */
 const convertToLocalDate = (dateStr) => {
     if (!dateStr) return null;
 
@@ -41,8 +41,6 @@ const convertToLocalDate = (dateStr) => {
     // Convert to local date string
     const date = new Date(dateStr);
     return toMYSQLDate(date);
-};
-const query = async (sql, params = []) => {
     const connection = await getPool().getConnection();
     try {
         const [results] = await connection.query(sql, params);
@@ -52,33 +50,65 @@ const query = async (sql, params = []) => {
 };
 
 /**
- * Format date to Philippine timezone
+ * Create logs directory if it doesn't exist
  * @private
- * @param {Date} date - Date object
- * @returns {string} Formatted date string in YYYY-MM-DD format
  */
-const toPHDateString = (date) => {
-    if (!date) return null;
+const ensureLogsDirectory = async () => {
+    const logsDir = path.join(process.cwd(), 'logs');
+    try {
+        await fs.access(logsDir);
+    } catch (error) {
+        // Directory doesn't exist, create it
+        await fs.mkdir(logsDir, { recursive: true });
+        console.log('Created logs directory:', logsDir);
+    }
+    return logsDir;
+};
+/**
+ * Write import log file with file content and parsed data
+ * @private
+ * @param {Object} file - The uploaded file object
+ * @param {Array} data - The parsed data from the file
+ * @param {Object} importResults - Results from the database import
+ * @returns {string} Path to the created log file
+ */
+const writeImportLog = async (file, data, importResults) => {
+    const logsDir = await ensureLogsDirectory();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const logFileName = `import-${file.originalname}-${timestamp}.log`;
+    const logFilePath = path.join(logsDir, logFileName);
 
-    // Create date object from input
-    const d = utcToZonedTime(date, timeZone);
+    const logContent = [
+        `=== IMPORT ATTENDANCE LOG ===`,
+        `Timestamp: ${new Date().toISOString()}`,
+        `File: ${file.originalname}`,
+        `Size: ${file.size} bytes`,
+        `MIME Type: ${file.mimetype}`,
+        ``,
+        `=== ALL FILE CONTENT ===`,
+        `Total records found: ${data.length}`,
+        JSON.stringify(data, null, 2),
+        ``,
+        `=== IMPORT RESULTS ===`,
+        `Status: ${importResults.status}`,
+        `Total processed: ${importResults.total}`,
+        `Inserted: ${importResults.inserted}`,
+        `Skipped: ${importResults.skipped}`,
+        `Failed: ${importResults.failed}`,
+        ``,
+        `=== ERRORS ===`,
+        importResults.errors && importResults.errors.length > 0
+            ? importResults.errors.map((error, index) => `${index + 1}. ${error}`).join('\n')
+            : 'No errors',
+        ``,
+        `=== END OF LOG ===`
+    ].join('\n');
 
-    // Get date components in local time
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-
-    // Return in YYYY-MM-DD format
-    return `${year}-${month}-${day}`;
+    await fs.writeFile(logFilePath, logContent, 'utf8');
+    console.log('Import log written to:', logFilePath);
+    return logFilePath;
 };
 
-/**
-{{ ... }}
- * Format Excel row data
- * @private
- * @param {Object} row - Raw row data from Excel
- * @returns {Object} Formatted row data
- */
 const formatExcelRow = (row) => {
     const formattedRow = { ...row };
     
@@ -412,19 +442,29 @@ exports.getUserAttendance = async (req, res) => {
                 const dateData = {
                     date: dateStr,
                     is_rest_day: isRest,
-                    is_editable: true, // alwasy set to true for now
+                    is_editable: true, // always set to true for now
                     is_holiday: holidayInfo.isHoliday,
                     holiday_type: holidayInfo.type,
                     schedule: `${formatTo12Hour(user.work_schedule_start)} - ${formatTo12Hour(user.work_schedule_end)}`,
-                    // Map work hours to the expected property names
-                    work_hours: workHours.nt || 0,
-                    overtime: workHours.ot || 0,
-                    late: workHours.lt || 0,
-                    undertime: workHours.ut || 0,
-                    night_diff: workHours.nd || 0,
+                    // Map work hours to the expected property names used by frontend
+                    nt: workHours.nt || '---',
+                    ut: workHours.ut || '---',
+                    ot: workHours.ot || '---',
+                    lt: workHours.lt || '---',
+                    nd: workHours.nd || '---',
                     ...(hasAttendance ? {
-                        ...attendanceByDate[dateStr],
-                        is_editable: true,
+                        id: attendanceByDate[dateStr].id,
+                        zk_id: attendanceByDate[dateStr].zk_id,
+                        log_date: attendanceByDate[dateStr].log_date,
+                        time_in: attendanceByDate[dateStr].time_in,
+                        time_out: attendanceByDate[dateStr].time_out,
+                        schedule_start: attendanceByDate[dateStr].schedule_start,
+                        schedule_end: attendanceByDate[dateStr].schedule_end,
+                        log_type: attendanceByDate[dateStr].log_type,
+                        is_reliever: attendanceByDate[dateStr].is_reliever,
+                        created_at: attendanceByDate[dateStr].created_at,
+                        updated_at: attendanceByDate[dateStr].updated_at,
+                        // Keep calculated fields for frontend use
                         ...workHours
                     } : {})
                 };
@@ -933,22 +973,26 @@ exports.importAttendanceNew = async (req, res) => {
         }
 
         console.log(`Processing ${data.length} records for database import...`);
-        const { 
-            insertedRows, 
-            skippedRows, 
-            errors, 
-            totalProcessed,
-            totalInserted,
-            totalSkipped,
-            totalFailed 
-        } = await importToDatabase(data);
-        
-        console.log('Database import completed:', {
+
+        // Create import log file with file content and parsed data preview
+        const logFilePath = await writeImportLog(req.file, data, {
+            status: 'processing',
+            total: data.length,
+            inserted: 0,
+            skipped: 0,
+            failed: 0,
+            errors: []
+        });
+
+        const {
+            insertedRows,
+            skippedRows,
+            errors,
             totalProcessed,
             totalInserted,
             totalSkipped,
             totalFailed
-        });
+        } = await importToDatabase(data);
         
         // Determine status based on results
         let status = 'success';
@@ -972,7 +1016,17 @@ exports.importAttendanceNew = async (req, res) => {
             skipped: totalSkipped,
             failed: totalFailed,
             total: totalProcessed,
-            message
+            message,
+            // Include log file path for reference
+            logFile: logFilePath,
+            // Include preview of parsed data (first 5 records)
+            dataPreview: data.slice(0, 5).map((record, index) => ({
+                index: index + 1,
+                zk_id: record.zk_id,
+                log_date: record.log_date,
+                time_in: record.time_in,
+                time_out: record.time_out
+            }))
         };
         
         // Include errors for debugging if any
@@ -1011,12 +1065,17 @@ exports.importAttendanceNew = async (req, res) => {
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+/**
+ * Add a new attendance record manually (with straight shift support)
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
 exports.addAttendanceRecord = async (req, res) => {
     const connection = await getPool().getConnection();
     try {
-        const { zk_id, date, time_in, time_out } = req.body;
+        const { zk_id, date, time_in, time_out, is_straight_shift, end_date, schedule_start, schedule_end } = req.body;
         const is_reliever = 1;
-        
+
         // Validate required fields
         if (!zk_id || !date || !time_in) {
             return res.status(400).json({
@@ -1043,24 +1102,122 @@ exports.addAttendanceRecord = async (req, res) => {
             });
         }
 
-        // Insert the attendance record
-        const [result] = await connection.query(
-            `INSERT INTO attendance 
-             (zk_id, log_date, time_in, time_out, is_reliever, log_type) 
-             VALUES (?, ?, ?, ?, 1, 1)`,
-            [zk_id, date, time_in, time_out, is_reliever]
-        );
+        // If it's a straight shift, validate end_date
+        if (is_straight_shift) {
+            if (!end_date) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'end_date is required for straight shifts',
+                });
+            }
+
+            if (!dateRegex.test(end_date)) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Invalid end_date format. Please use YYYY-MM-DD',
+                });
+            }
+
+            // Validate that end_date is after start date
+            const startDate = new Date(date);
+            const endDate = new Date(end_date);
+            if (endDate <= startDate) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'End date must be after start date for straight shifts',
+                });
+            }
+        }
+
+        let insertedRecords = [];
+
+        if (is_straight_shift && end_date) {
+            // Handle straight shift - create multiple linked records
+            const startDate = new Date(date);
+            const endDate = new Date(end_date);
+
+            // Generate unique straight shift ID
+            const straightShiftId = `SHIFT_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            // Calculate number of days between start and end date
+            const timeDiff = endDate.getTime() - startDate.getTime();
+            const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+            for (let i = 0; i < daysDiff; i++) {
+                const currentDate = new Date(startDate);
+                currentDate.setDate(startDate.getDate() + i);
+
+                const currentDateStr = currentDate.toISOString().split('T')[0];
+                let recordTimeIn = null;
+                let recordTimeOut = null;
+                let isStart = false;
+                let isEnd = false;
+
+                if (i === 0) {
+                    // First day - use provided time_in
+                    recordTimeIn = time_in;
+                    isStart = true;
+                    // Time out will be end of day (23:59:59) for first day of straight shift
+                    recordTimeOut = '23:59:59';
+                } else if (i === daysDiff - 1) {
+                    // Last day - time_in is start of day (00:00:00), time_out is provided time_out
+                    recordTimeIn = '00:00:00';
+                    recordTimeOut = time_out;
+                    isEnd = true;
+                } else {
+                    // Middle days - full 24 hour coverage
+                    recordTimeIn = '00:00:00';
+                    recordTimeOut = '23:59:59';
+                }
+
+                // Insert the record
+                const [result] = await connection.query(
+                    `INSERT INTO attendance
+                     (zk_id, log_date, time_in, time_out, is_reliever, log_type, straight_shift_id, is_straight_shift_start, is_straight_shift_end, schedule_start, schedule_end)
+                     VALUES (?, ?, ?, ?, 1, 1, ?, ?, ?, ?, ?)`,
+                    [zk_id, currentDateStr, recordTimeIn, recordTimeOut, straightShiftId, isStart ? 1 : 0, isEnd ? 1 : 0, schedule_start || null, schedule_end || null]
+                );
+
+                insertedRecords.push({
+                    id: result.insertId,
+                    date: currentDateStr,
+                    isStart,
+                    isEnd
+                });
+            }
+        } else {
+            // Regular single-day record
+            const [result] = await connection.query(
+                `INSERT INTO attendance
+                 (zk_id, log_date, time_in, time_out, is_reliever, log_type, schedule_start, schedule_end)
+                 VALUES (?, ?, ?, ?, 1, 1, ?, ?)`,
+                [zk_id, date, time_in, time_out, schedule_start || null, schedule_end || null]
+            );
+
+            insertedRecords.push({
+                id: result.insertId,
+                date: date,
+                isStart: false,
+                isEnd: false
+            });
+        }
 
         res.status(201).json({
             success: true,
-            message: 'Attendance record added successfully',
+            message: `Attendance record${insertedRecords.length > 1 ? 's' : ''} added successfully`,
             data: {
-                id: result.insertId
+                records: insertedRecords,
+                straight_shift: is_straight_shift ? {
+                    id: straightShiftId,
+                    start_date: date,
+                    end_date: end_date,
+                    total_days: insertedRecords.length
+                } : null
             }
         });
     } catch (error) {
         console.error('Error adding attendance record:', error);
-        
+
         // Handle duplicate entry error
         if (error.code === 'ER_DUP_ENTRY') {
             return res.status(409).json({
@@ -1068,7 +1225,7 @@ exports.addAttendanceRecord = async (req, res) => {
                 message: 'An attendance record already exists for this user and date',
             });
         }
-        
+
         res.status(500).json({
             success: false,
             message: 'Failed to add attendance record',
