@@ -224,3 +224,56 @@ exports.createOrUpdateUser = async (req, res) => {
         }
     }
 };
+
+exports.getDevice = async(req, res) => {
+    const mysql = require('../../mysql');
+
+    try {
+        // Get the admin ID from the request (assuming it's stored in req.user after authentication)
+        // const adminId = req.user?.id || req.body?.adminId || req.query?.adminId;
+
+        // if (!adminId) {
+        //     return res.status(400).json({
+        //         success: false,
+        //         error: 'Admin ID is required'
+        //     });
+        // }
+
+        // Query the zk_config table for the device settings
+        const { results } = await mysql.query(
+            'SELECT id, aid, name, ip, port, created_at, updated_at FROM zk_config WHERE aid = ?',
+            [adminId]
+        );
+
+        if (results.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No device configuration found for this admin',
+                device: null
+            });
+        }
+
+        const device = results[0];
+
+        res.json({
+            success: true,
+            device: {
+                id: device.id,
+                name: device.name,
+                ip: device.ip,
+                port: device.port,
+                adminId: device.aid,
+                createdAt: device.created_at,
+                updatedAt: device.updated_at
+            }
+        });
+
+    } catch (error) {
+        console.error('Error getting device settings:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to retrieve device settings',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};

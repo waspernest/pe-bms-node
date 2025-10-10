@@ -6,5 +6,6 @@ router.get("/", zkController.testConnection);
 router.get("/users", zkController.getUsers);
 router.get("/attendance", zkController.getAttendance);
 router.post("/user", zkController.createOrUpdateUser);
+router.get("/device", zkController.getDevice);
 
 module.exports = router;
