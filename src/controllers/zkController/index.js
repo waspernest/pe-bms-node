@@ -1,11 +1,23 @@
 //const ZKLib = require('node-zklib');
 //const ZKLib = require('zklib-js');
 const ZKLib = require('../../libs/zkh-lib'); // Local copy of the zkh-lib in src/libs/zkh-lib. DO NOT REMOVE OR CHANGE THIS LINE
+const { getPool } = require('../../mysql');
 const { logAttendance } = require('../attendanceController');
 const dotenv = require('dotenv');
 dotenv.config();
 const { getConfig } = require('../../utils/setupConfig');
 const config = getConfig();
+
+// Helper function to get a connection and run a query
+const query = async (sql, params = []) => {
+    const connection = await getPool().getConnection();
+    try {
+        const [results] = await connection.query(sql, params);
+        return results;
+    } finally {
+        connection.release();
+    }
+};
 
 exports.testConnection = async (req, res) => {
     // Replace with your actual device IP and port
@@ -225,51 +237,65 @@ exports.createOrUpdateUser = async (req, res) => {
     }
 };
 
-exports.getDevice = async(req, res) => {
-    const mysql = require('../../mysql');
-
+exports.getDevice = async (req, res) => {
     try {
-        // Get the admin ID from the request (assuming it's stored in req.user after authentication)
-        // const adminId = req.user?.id || req.body?.adminId || req.query?.adminId;
+        // Get the admin ID from the request
+        const adminId = req.user?.id || req.body?.adminId || req.query?.adminId;
+        console.log('Admin ID from request:', adminId);
 
-        // if (!adminId) {
-        //     return res.status(400).json({
-        //         success: false,
-        //         error: 'Admin ID is required'
-        //     });
-        // }
+        if (!adminId) {
+            return res.status(400).json({
+                success: false,
+                error: 'Admin ID is required'
+            });
+        }
 
-        // Query the zk_config table for the device settings
-        const { results } = await mysql.query(
-            'SELECT id, aid, name, ip, port, created_at, updated_at FROM zk_config WHERE aid = ?',
+        // Execute the query
+        console.log('Executing query with adminId:', adminId);
+        const results = await query(
+            'SELECT id, zk_ip, zk_port, zk_timeout FROM zk_config WHERE aid = ?',
             [adminId]
         );
+        console.log('Query results:', results);
 
-        if (results.length === 0) {
-            return res.json({
-                success: true,
-                message: 'No device configuration found for this admin',
-                device: null
+        // Check if we got any results
+        if (!results || results.length === 0) {
+            console.log('No device configuration found for admin ID:', adminId);
+            return res.status(404).json({
+                success: false,
+                error: 'No device configuration found for this admin'
             });
         }
 
         const device = results[0];
+        console.log('Found device:', device);
+
+        // Validate device data
+        if (!device) {
+            console.error('No device data received');
+            throw new Error('No device data received from database');
+        }
 
         res.json({
             success: true,
             device: {
                 id: device.id,
-                name: device.name,
-                ip: device.ip,
-                port: device.port,
-                adminId: device.aid,
-                createdAt: device.created_at,
-                updatedAt: device.updated_at
+                ip: device.zk_ip || '192.168.18.100',
+                port: device.zk_port || 4370,
+                timeout: device.zk_timeout || 5000
             }
         });
 
     } catch (error) {
-        console.error('Error getting device settings:', error);
+        console.error('Error in getDevice:', {
+            message: error.message,
+            stack: error.stack,
+            request: {
+                query: req.query,
+                body: req.body,
+                user: req.user
+            }
+        });
         res.status(500).json({
             success: false,
             error: 'Failed to retrieve device settings',
