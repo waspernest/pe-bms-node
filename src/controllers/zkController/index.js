@@ -43,6 +43,32 @@ exports.testConnection = async (req, res) => {
     }
 };
 
+exports.testDeviceConnection = async (req, res) => {
+
+    const {zk_ip, zk_port, zk_timeout} = req.body;
+
+    const zkDevice = new ZKLib(
+        zk_ip, 
+        parseInt(zk_port, 10), 
+        parseInt(zk_timeout, 10), 
+        parseInt(process.env.ZK_READ_TIMEOUT, 10)
+    );
+
+    try {
+        await zkDevice.createSocket();
+        await zkDevice.disconnect();
+        res.json({ reachable: true, message: 'Device is reachable.' });
+    } catch (error) {
+        res.status(500).json({ reachable: false, message: 'Device is not reachable.', error: error.message });
+    } finally {
+        try {
+            await zkDevice.disconnect();
+        } catch (e) {
+            console.error('Error disconnecting from ZK device:', e);
+        }
+    }
+};
+
 /**
  * Get users from ZK device
  * @param {Object} res - Optional Express response object. If provided, sends JSON response.
