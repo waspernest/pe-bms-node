@@ -44,27 +44,55 @@ exports.testConnection = async (req, res) => {
 };
 
 exports.testDeviceConnection = async (req, res) => {
-
     const {zk_ip, zk_port, zk_timeout} = req.body;
+    const deviceInfo = `ZK Device ${zk_ip}:${zk_port}`;
+    const timestamp = new Date().toISOString();
+
+    console.log(`[${timestamp}] Attempting to connect to ${deviceInfo} with timeout: ${zk_timeout}ms`);
 
     const zkDevice = new ZKLib(
         zk_ip, 
         parseInt(zk_port, 10), 
         parseInt(zk_timeout, 10), 
-        parseInt(process.env.ZK_READ_TIMEOUT, 10)
+        parseInt(process.env.ZK_READ_TIMEOUT || 10000, 10)
     );
 
+    let isConnected = false;
     try {
+        console.log(`[${new Date().toISOString()}] Creating socket connection to ${deviceInfo}...`);
         await zkDevice.createSocket();
-        await zkDevice.disconnect();
-        res.json({ reachable: true, message: 'Device is reachable.' });
+        isConnected = true;
+        const successMsg = `Successfully connected to ${deviceInfo}`;
+        console.log(`[${new Date().toISOString()}] ${successMsg}`);
+        res.json({ 
+            reachable: true, 
+            message: successMsg,
+            device: deviceInfo,
+            timestamp: new Date().toISOString()
+        });
     } catch (error) {
-        res.status(500).json({ reachable: false, message: 'Device is not reachable.', error: error.message });
+        const errorMsg = `Failed to connect to ${deviceInfo}: ${error.message}`;
+        console.error(`[${new Date().toISOString()}] ${errorMsg}`, error);
+        res.status(500).json({ 
+            reachable: false, 
+            message: `Connection to ${deviceInfo} failed`,
+            error: error.message,
+            details: {
+                code: error.code,
+                device: deviceInfo,
+                timestamp: new Date().toISOString()
+            }
+        });
     } finally {
-        try {
-            await zkDevice.disconnect();
-        } catch (e) {
-            console.error('Error disconnecting from ZK device:', e);
+        if (isConnected) {
+            try {
+                console.log(`[${new Date().toISOString()}] Disconnecting from ${deviceInfo}...`);
+                await zkDevice.disconnect();
+                console.log(`[${new Date().toISOString()}] Successfully disconnected from ${deviceInfo}`);
+            } catch (e) {
+                const disconnectError = `Error disconnecting from ${deviceInfo}: ${e.message}`;
+                console.error(`[${new Date().toISOString()}] ${disconnectError}`, e);
+            }
         }
     }
 };
