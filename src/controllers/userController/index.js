@@ -345,6 +345,217 @@ exports.updateUser = async (req, res) => {
     }
 };
 
+exports.updateUserNew = async (req, res) => {
+    const { id } = req.params;
+    const { 
+        first_name, 
+        last_name, 
+        zk_id, 
+        password, 
+        department,
+        job_position,
+        work_schedule_start,
+        work_schedule_end,
+        rest_day,
+        has_fingerprint,
+        sid,
+        schedules
+    } = req.body;
+    let updateToDevice = false;
+    
+    try {
+        // Get the existing user data first to get the password
+        const users = await query('SELECT * FROM users WHERE id = ?', [id]);
+
+        if (!users || users.length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'User not found'
+            });
+        }
+        
+        const user = users[0];
+
+        // Check if zk_id is being updated
+        if (zk_id && zk_id !== user.zk_id) {
+            // Validate zk_id format (should be a 4-digit string)
+            // if (!/^\d{1,4}$/.test(zk_id)) {
+            //     throw new Error('ZK ID must be a 1-4 digit number (e.g., 1, 01, 001, or 0001)');
+            // }
+            
+            // Check if new zk_id is already in use
+            const existingUsers = await query(
+                'SELECT * FROM users WHERE zk_id = ? AND id != ?', 
+                [zk_id, id]
+            );
+            
+            if (existingUsers.length > 0) {
+                throw new Error(`ZK ID ${zk_id} is already in use by another user`);
+            }
+            
+            // Check if zk_id is in deleted_users
+            const deletedUsers = await query(
+                'SELECT * FROM deleted_users WHERE zk_id = ?', 
+                [zk_id]
+            );
+            
+            if (deletedUsers.length > 0) {
+                throw new Error(`ZK ID ${zk_id} has been previously deleted and cannot be reused`);
+            }
+        }
+        
+        // Build the update query dynamically based on provided fields
+        const updateFields = [];
+        const updateValues = [];
+        
+        if (first_name) {
+            updateFields.push('first_name = ?');
+            updateValues.push(first_name.trim());
+        }
+        
+        if (last_name) {
+            updateFields.push('last_name = ?');
+            updateValues.push(last_name.trim());
+        }
+        
+        if (zk_id) {
+            updateFields.push('zk_id = ?');
+            updateValues.push(zk_id);
+        }
+        
+        if (job_position !== undefined) {
+            updateFields.push('job_position = ?');
+            updateValues.push(job_position ? job_position.trim() : null);
+        }
+
+        if (department !== undefined) {
+            updateFields.push('department = ?');
+            updateValues.push(department);
+        }
+        
+        if (work_schedule_start) {
+            updateFields.push('work_schedule_start = ?');
+            updateValues.push(work_schedule_start);
+        }
+        
+        if (work_schedule_end) {
+            updateFields.push('work_schedule_end = ?');
+            updateValues.push(work_schedule_end);
+        }
+        
+        if (rest_day) {
+            updateFields.push('rest_day = ?');
+            updateValues.push(rest_day);
+        }
+        
+        if (has_fingerprint !== undefined) {
+            updateFields.push('has_fingerprint = ?');
+            updateValues.push(has_fingerprint ? 1 : 0);
+        }
+
+        // Handle schedule ID for coal_handling department
+        if (department === 'coal_handling' && sid) {
+            updateFields.push('sid = ?');
+            updateValues.push(sid);
+        }
+        
+        // If no fields to update, return the existing user
+        if (updateFields.length === 0) {
+            return res.json({
+                success: true,
+                message: 'No fields to update',
+                user
+            });
+        }
+        
+        // Add updated_at timestamp
+        updateFields.push('updated_at = NOW()');
+        
+        // Add id to the values array for the WHERE clause
+        updateValues.push(id);
+        
+        // Build and execute the update query
+        const updateQuery = `
+            UPDATE users 
+            SET ${updateFields.join(', ')}
+            WHERE id = ?
+        `;
+        
+        await query(updateQuery, updateValues);
+        
+        // Fetch the updated user
+        const updatedUser = await query('SELECT * FROM users WHERE id = ?', [id]);
+        
+        if (!updatedUser || updatedUser.length === 0) {
+            throw new Error('Failed to fetch updated user');
+        }
+        
+        const updatedUserData = updatedUser[0];
+        
+        // Update user in ZK device if zk_id or name changed
+        if ((zk_id && zk_id !== user.zk_id) || 
+            (first_name && first_name !== user.first_name) || 
+            (last_name && last_name !== user.last_name)) {
+            
+            // Flag to update user in device
+            updateToDevice = true;
+
+            // const uid = Number(updatedUserData.zk_id);
+            // const paddedZkId = updatedUserData.zk_id;
+            // const fullName = `${updatedUserData.first_name} ${updatedUserData.last_name}`.substring(0, 24);
+            
+            // console.log('Attempting to update user in ZK device:', {
+            //     uid,
+            //     userid: paddedZkId,
+            //     name: fullName,
+            //     role: updatedUserData.role || 0,
+            //     cardno: 0
+            // });
+            
+            // const zkResult = await createOrUpdateUser({
+            //     uid,
+            //     userid: paddedZkId,
+            //     name: fullName,
+            //     password: user.password, // Use existing password
+            //     role: updatedUserData.role || 0,
+            //     cardno: 0
+            // });
+            
+            // if (!zkResult || !zkResult.success) {
+            //     console.error('ZK device update failed:', zkResult);
+            //     throw new Error(zkResult?.error || 'Failed to update user in ZK device');
+            // }
+        }
+        
+        res.json({
+            success: true,
+            message: 'User updated successfully',
+            update_to_device: updateToDevice,
+            user: {
+                id: updatedUserData.id,
+                first_name: updatedUserData.first_name,
+                last_name: updatedUserData.last_name,
+                password: updatedUserData.password,
+                zk_id: updatedUserData.zk_id,
+                job_position: updatedUserData.job_position,
+                work_schedule_start: updatedUserData.work_schedule_start,
+                work_schedule_end: updatedUserData.work_schedule_end,
+                has_fingerprint: Boolean(updatedUserData.has_fingerprint),
+                created_at: updatedUserData.created_at,
+                updated_at: updatedUserData.updated_at
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating user:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to update user',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
 // Create a new user in the database
 exports.createUser = async (req, res) => {
     // Destructure with default values that handle empty strings
@@ -514,10 +725,143 @@ exports.createUser = async (req, res) => {
     }
 };
 
+exports.createUserNew = async (req, res) => {
+    // Destructure with default values that handle empty strings
+    const { 
+        first_name, 
+        last_name, 
+        zk_id, 
+        password, 
+        job_position,
+        department,
+        work_schedule_start,
+        work_schedule_end,
+        rest_day,
+        has_fingerprint = false
+    } = req.body;
+    
+    // Apply defaults if values are empty or undefined
+    const workStart = work_schedule_start || '09:00';
+    const workEnd = work_schedule_end || '18:00';
+    const restDay = rest_day || 'Sunday';
+    
+    const role = 0; // Default role
+    
+    try {
+        // Validate required fields
+        if (!first_name || !last_name || !zk_id || !password) {
+            throw new Error('First name, last name, ZK ID, and password are required');
+        }
+        
+        // Validate ZK ID format
+        // if (!/^\d{1,4}$/.test(zk_id)) {
+        //     throw new Error('ZK ID must be a 1-4 digit number (e.g., 1, 01, 001, or 0001)');
+        // }
+        
+        // Validate time format (HH:MM)
+        const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(work_schedule_start) || !timeRegex.test(work_schedule_end)) {
+            throw new Error('Invalid time format. Please use HH:MM format (e.g., 09:00)');
+        }
+        
+        // Check if zk_id exists in deleted_users table
+        const deletedUsers = await query(
+            'SELECT * FROM deleted_users WHERE zk_id = ?', 
+            [zk_id]
+        );
+        
+        if (deletedUsers.length > 0) {
+            throw new Error(`ZK ID ${zk_id} has been previously deleted and cannot be reused`);
+        }
+        
+        // Check if zk_id already exists in users table
+        const existingUsers = await query(
+            'SELECT * FROM users WHERE zk_id = ?', 
+            [zk_id]
+        );
+        
+        if (existingUsers.length > 0) {
+            throw new Error(`ZK ID ${zk_id} is already in use`);
+        }
+
+        // Hash the password before storing
+        //const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Insert the new user into the database
+        const result = await query(
+            `INSERT INTO users (
+                first_name, 
+                last_name, 
+                zk_id, 
+                password, 
+                role,
+                job_position, 
+                department,
+                work_schedule_start, 
+                work_schedule_end,
+                rest_day,
+                has_fingerprint,
+                created_at,
+                updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+            [
+                first_name.trim(),
+                last_name.trim(),
+                zk_id,
+                password,
+                role,
+                job_position,
+                department,
+                workStart,
+                workEnd,
+                restDay,
+                has_fingerprint ? 1 : 0
+            ]
+        );
+        
+        const userId = result.insertId;
+
+        // Fetch the created user to include in the response
+        const createdUser = await query('SELECT * FROM users WHERE id = ?', [userId]);
+
+        if (!createdUser || createdUser.length === 0) {
+            throw new Error('Failed to fetch created user');
+        }
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'User created successfully in both database and ZK device',
+            add_to_device: true,
+            user: {
+                id: createdUser[0].id,
+                first_name: createdUser[0].first_name,
+                last_name: createdUser[0].last_name,
+                password: createdUser[0].password,
+                zk_id: createdUser[0].zk_id,
+                job_position: createdUser[0].job_position,
+                work_schedule_start: createdUser[0].work_schedule_start,
+                work_schedule_end: createdUser[0].work_schedule_end,
+                has_fingerprint: Boolean(createdUser[0].has_fingerprint),
+                created_at: createdUser[0].created_at,
+                updated_at: createdUser[0].updated_at
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error creating user:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to create user',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
 exports.updatePassword = async (req, res) => {
     const { id } = req.params;
     const { currentPassword, newPassword } = req.body;
-    
+    let updateToDevice = false;
+
     try {
         // Validate input
         if (!currentPassword || !newPassword) {
@@ -567,33 +911,36 @@ exports.updatePassword = async (req, res) => {
         
         // Update password in ZK device if user has a zk_id
         if (user.zk_id) {
-            try {
-                const zkResult = await createOrUpdateUser({
-                    uid: Number(user.zk_id),
-                    userid: user.zk_id.padStart(4, '0'),
-                    name: `${user.first_name} ${user.last_name}`.substring(0, 24),
-                    password: newPassword.substring(0, 8), // Max 8 chars for ZK device
-                    role: user.role || 0,
-                    cardno: 0
-                });
+            updateToDevice = true;
+            // try {
+            //     const zkResult = await createOrUpdateUser({
+            //         uid: Number(user.zk_id),
+            //         userid: user.zk_id.padStart(4, '0'),
+            //         name: `${user.first_name} ${user.last_name}`.substring(0, 24),
+            //         password: newPassword.substring(0, 8), // Max 8 chars for ZK device
+            //         role: user.role || 0,
+            //         cardno: 0
+            //     });
                 
-                if (!zkResult || !zkResult.success) {
-                    console.error('ZK device update failed:', zkResult);
-                    throw new Error(zkResult?.error || 'Failed to update password in ZK device');
-                }
+            //     if (!zkResult || !zkResult.success) {
+            //         console.error('ZK device update failed:', zkResult);
+            //         throw new Error(zkResult?.error || 'Failed to update password in ZK device');
+            //     }
                 
-                console.log(`Successfully updated password in ZK device for user ID: ${id}`);
+            //     console.log(`Successfully updated password in ZK device for user ID: ${id}`);
                 
-            } catch (zkError) {
-                console.error('Error updating password in ZK device:', zkError);
-                // We don't throw here because the password was updated in the database
-                // We just log the error and continue
-            }
+            // } catch (zkError) {
+            //     console.error('Error updating password in ZK device:', zkError);
+            //     // We don't throw here because the password was updated in the database
+            //     // We just log the error and continue
+            // }
         }
         
         res.json({
             success: true,
-            message: 'Password updated successfully' + (user.zk_id ? ' (ZK device update may require retry)' : '')
+            user: user,
+            message: 'Password updated successfully' + (user.zk_id ? ' (ZK device update may require retry)' : ''),
+            update_to_device: updateToDevice
         });
         
     } catch (error) {
@@ -1494,4 +1841,8 @@ exports.exportUserAttendanceToWord = async (req, res) => {
         }
     }
 }
-}; 
+};
+
+exports.getDataFromDevice = async (req, res) => {
+    const { type } = req.query;
+}

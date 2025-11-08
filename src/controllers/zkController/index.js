@@ -99,15 +99,28 @@ exports.testDeviceConnection = async (req, res) => {
 
 /**
  * Get users from ZK device
- * @param {Object} res - Optional Express response object. If provided, sends JSON response.
- * @returns {Promise<Array>} Array of users if called directly, otherwise sends JSON response
+ * @param {Object} req - Express request object (optional if called directly)
+ * @param {Object} res - Express response object (optional if called directly)
+ * @returns {Promise<Array|Object>} Array of users if called directly, otherwise sends JSON response
  */
-exports.getUsers = async (res = null) => {
+exports.getUsers = async (req, res = null) => {
+    // Handle case where only res is passed (backward compatibility)
+    if (res === null && req && typeof req.json === 'function') {
+        res = req;
+        req = { body: {} };
+    }
+    // const zkDevice = new ZKLib(
+    //     config.zk_ip, 
+    //     parseInt(config.zk_port, 10), 
+    //     parseInt(config.zk_timeout, 10), 
+    //     parseInt(config.zk_read_timeout, 10)
+    // );
+
     const zkDevice = new ZKLib(
-        config.zk_ip, 
-        parseInt(config.zk_port, 10), 
-        parseInt(config.zk_timeout, 10), 
-        parseInt(config.zk_read_timeout, 10)
+        req.deviceConfig.ip, 
+        parseInt(req.deviceConfig.port, 10), 
+        parseInt(req.deviceConfig.timeout, 10), 
+        parseInt(req.deviceConfig.readTimeout, 10)
     );
 
     try {
@@ -115,25 +128,32 @@ exports.getUsers = async (res = null) => {
         const users = await zkDevice.getUsers();
         
         // If called as middleware (with res), send JSON response
-        if (res) {
-            return res.json({ users });
+        if (res && typeof res.json === 'function') {
+            return res.json({ 
+                success: true, 
+                users 
+            });
         }
         
-        // If called directly, return the users array
         return users;
     } catch (error) {
-        console.error('Error getting users from ZK device:', error);
+        console.error('Error getting users:', error);
         
         // If called as middleware, send error response
-        if (res) {
-            return res.status(500).json({ error: error.message });
+        if (res && typeof res.status === 'function') {
+            return res.status(500).json({ 
+                success: false, 
+                error: 'Failed to get users from ZK device',
+                details: error.message 
+            });
         }
         
-        // If called directly, rethrow the error
         throw error;
     } finally {
         try {
-            await zkDevice.disconnect();
+            if (zkDevice && typeof zkDevice.disconnect === 'function') {
+                await zkDevice.disconnect();
+            }
         } catch (e) {
             console.error('Error disconnecting from ZK device:', e);
         }
@@ -228,16 +248,28 @@ exports.getAttendance = async (req, res) => {
 // POST /api/zk/user
 exports.createOrUpdateUser = async (req, res) => {
     // Handle both Express and direct calls
-    let uid, userid, name, password, role, cardno;
+    //let uid, userid, name, password, role, cardno;
     
     // Handle both direct call (from userController) and HTTP request
-    if (req && req.body) {
-        // Called from HTTP request
-        ({ uid, userid, name, password, role, cardno } = req.body);
-    } else {
-        // Called directly from userController
-        ({ uid, userid, name, password, role, cardno } = req);
-    }
+    const requestData = req.body.data || req.body; // Handle both nested and direct data
+    
+    // Extract fields from request data
+    const { 
+        uid, 
+        userid, 
+        name, 
+        password, 
+        role = 0, 
+        cardno = 0 
+    } = requestData;
+
+    // Debug
+    console.log('Received data in createOrUpdateUser:', {
+        body: req.body,
+        deviceConfig: req.deviceConfig
+    });
+    console.log('Extracted data:', requestData);
+    console.log('Extracted fields:', { uid, userid, name, password, role, cardno });
     
     if (!uid || !userid || !name || password === undefined) {
         const error = new Error('uid, userid, name, and password are required.');
@@ -248,10 +280,10 @@ exports.createOrUpdateUser = async (req, res) => {
     }
 
     const zkDevice = new ZKLib(
-        config.zk_ip, 
-        parseInt(config.zk_port, 10), 
-        parseInt(config.zk_timeout, 10), 
-        parseInt(config.zk_read_timeout, 10)
+        req.deviceConfig.ip, 
+        parseInt(req.deviceConfig.port, 10), 
+        parseInt(req.deviceConfig.timeout, 10), 
+        parseInt(req.deviceConfig.readTimeout, 10)
     );
 
     try {
@@ -298,10 +330,14 @@ exports.getDevice = async (req, res) => {
         console.log('Admin ID from request:', adminId);
 
         if (!adminId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Admin ID is required'
-            });
+            const error = new Error('Admin ID is required');
+            if (res) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+            throw error;
         }
 
         // Execute the query
@@ -315,10 +351,14 @@ exports.getDevice = async (req, res) => {
         // Check if we got any results
         if (!results || results.length === 0) {
             console.log('No device configuration found for admin ID:', adminId);
-            return res.status(404).json({
-                success: false,
-                error: 'No device configuration found for this admin'
-            });
+            const error = new Error('No device configuration found for this admin');
+            if (res) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+            throw error;
         }
 
         const device = results[0];
@@ -326,11 +366,17 @@ exports.getDevice = async (req, res) => {
 
         // Validate device data
         if (!device) {
-            console.error('No device data received');
-            throw new Error('No device data received from database');
+            const error = new Error('No device data received from database');
+            if (res) {
+                return res.status(500).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+            throw error;
         }
 
-        res.json({
+        const response = {
             success: true,
             device: {
                 id: device.id,
@@ -338,22 +384,133 @@ exports.getDevice = async (req, res) => {
                 port: device.zk_port || 4370,
                 timeout: device.zk_timeout || 5000
             }
-        });
+        };
+
+        // If res is provided, send the response
+        if (res) {
+            return res.json(response);
+        }
+        
+        // Otherwise, return the data
+        return response;
 
     } catch (error) {
         console.error('Error in getDevice:', {
             message: error.message,
             stack: error.stack,
-            request: {
+            request: req ? {
                 query: req.query,
                 body: req.body,
                 user: req.user
+            } : 'No request object'
+        });
+        
+        if (res) {
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to retrieve device settings',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+        throw error;
+    }
+};
+
+exports.zkService = async (req, res) => {
+    try {
+        const { action, aid, ...data } = req.body;
+
+        if (!action || !aid) {
+            return res.status(400).json({
+                success: false,
+                error: 'Action and admin ID are required'
+            });
+        }
+
+        try {
+            // Get config based on admin ID
+            const { success, device } = await exports.getDevice({ 
+                body: { adminId: aid } 
+            });
+
+            if (!success || !device) {
+                return res.status(500).json({
+                    success: false,
+                    error: 'Failed to retrieve device settings'
+                });
             }
-        });
-        res.status(500).json({
-            success: false,
-            error: 'Failed to retrieve device settings',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+
+            // Add device config to request object
+            req.deviceConfig = {
+                ip: device.ip,
+                port: device.port,
+                timeout: device.timeout,
+                readTimeout: 10000
+            };
+
+            // Handle the action with dynamic data
+            let result;
+            switch (action) {
+                case 'getAttendance':
+                    result = await exports.getAttendance(req, res);
+                    break;
+                case 'createOrUpdateUser':
+                    // Check for required fields directly in the data object
+                    if (!data.uid || !data.userid || !data.name || data.password === undefined) {
+                        return res.status(400).json({
+                            success: false,
+                            error: 'uid, userid, name, and password are required for user operations'
+                        });
+                    }
+                    
+                    // Create a new request object with the data in the body
+                    const userReq = { 
+                        ...req, 
+                        body: { 
+                            ...data,
+                            role: data.role || 0,
+                            cardno: data.cardno || 0
+                        } 
+                    };
+                    result = await exports.createOrUpdateUser(userReq, res);
+                    break;
+                case 'syncUsers':
+                    result = await exports.getUsers(req, res);
+                    break;
+                default:
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid action'
+                    });
+            }
+
+            // Only send response if it hasn't been sent yet
+            if (res && !res.headersSent) {
+                return res.json(result);
+            }
+            
+        } catch (error) {
+            console.error(`Error in zkService - ${action}:`, error);
+            
+            // Only send response if it hasn't been sent yet
+            if (res && !res.headersSent) {
+                return res.status(500).json({
+                    success: false,
+                    error: `Failed to process ${action} action`,
+                    details: process.env.NODE_ENV === 'development' ? error.message : undefined
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Unexpected error in zkService:', error);
+        
+        // Only send response if it hasn't been sent yet
+        if (res && !res.headersSent) {
+            return res.status(500).json({
+                success: false,
+                error: 'Internal server error',
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
     }
 };

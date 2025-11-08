@@ -52,10 +52,16 @@ const PORT = process.env.PORT || 3000;
 // Start server only after DB connects
 (async () => {
   try {
-    await connect();
-    const conn = await getPool().getConnection();
-    console.log('✅ Connected to MySQL');
-    conn.release();
+    // In development, connect to local mysql, but when built in pkg, I only need the ZK related functions 
+    if (process.env.APP_ENV !== 'production' || process.env.REQUIRE_MYSQL) {
+      await connect();
+      const conn = await getPool().getConnection();
+      console.log('✅ Connected to MySQL');
+      conn.release();
+  } else {
+      console.log('⚠️  Running in production mode with MySQL disabled');
+      console.log('ℹ️  Only ZK functions are available');
+  }
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
@@ -63,8 +69,8 @@ const PORT = process.env.PORT || 3000;
       //console.log(`⚙️ Config Path: ${getConfigPath()}`);
     });
 
-    // Setup socket.io
-    setupSocket(server);
+    // Setup socket.io - Remove polling
+    //setupSocket(server);
 
     process.on('unhandledRejection', (reason, promise) => {
       console.error('Unhandled Rejection:', reason);
