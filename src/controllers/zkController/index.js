@@ -181,33 +181,19 @@ exports.getAttendance = async (req, res) => {
 
         if (!attendance || !attendance.data || attendance.data.length === 0) {
             console.warn('⚠️ No attendance logs available.');
-            return res.json({
+            const response = {
                 success: true,
                 message: 'No attendance records found.',
-                attendance: [],
-                currentTime: new Date().toISOString()
-            });
-        }
-
-        // Format attendance data with only required fields
-        const attendanceLogs = attendance.data.map(log => {
-            const date = new Date(log.recordTime);
-            return {
-                zk_id: log.deviceUserId, // Using deviceUserId from the log
-                log_date: date.toISOString().split('T')[0], // YYYY-MM-DD format
-                time: date.toTimeString().split(' ')[0]  // HH:MM:SS format
+                details: {
+                    count: 0,
+                    startDate: null,
+                    endDate: null
+                }
             };
-        });
-
-        try {
-            // Call logAttendance with only the required fields
-            await logAttendance({ body: { attendance: attendanceLogs } }, { json: () => {} });
-        } catch (error) {
-            console.error('Error in attendance logging:', error);
-            // Don't fail the main request if attendance logging fails
+            return res ? res.json(response) : response;
         }
-        
-        // Keep the full formatted data for the response
+
+        // Format attendance data
         const formattedAttendance = attendance.data.map(log => {
             const date = new Date(log.recordTime);
             return {
@@ -218,28 +204,181 @@ exports.getAttendance = async (req, res) => {
             };
         });
 
-        res.json({
+        // Log attendance to database if needed
+        try {
+            await logAttendance({ 
+                body: { 
+                    attendance: formattedAttendance.map(log => ({
+                        zk_id: log.deviceUserId,
+                        log_date: log.date,
+                        time: log.time
+                    }))
+                } 
+            }, { json: () => {} });
+        } catch (error) {
+            console.error('Error in attendance logging:', error);
+            // Don't fail the main request if attendance logging fails
+        }
+        
+        const response = {
             success: true,
-            attendance: formattedAttendance,
-            currentTime: new Date().toISOString(),
-            recordCount: formattedAttendance.length
-        });
+            result: formattedAttendance,
+            message: 'Attendance logs retrieved successfully',
+            details: {
+                count: formattedAttendance.length,
+                startDate: formattedAttendance[0]?.date,
+                endDate: formattedAttendance[formattedAttendance.length - 1]?.date
+            }
+        };
+
+        if (res) {
+            res.json(response);
+        }
+        return response;
 
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] ❌ Error encountered:`, error.message || error);
-        res.status(500).json({
+        console.error('Error getting attendance from ZKTeco device:', error);
+        const errorResponse = {
             success: false,
-            error: 'Failed to fetch attendance data',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+            error: error.message,
+            details: {
+                errorTime: new Date().toISOString()
+            }
+        };
+        
+        if (res) {
+            res.status(500).json(errorResponse);
+        }
+        throw error;
     } finally {
         if (isConnected) {
             try {
-                console.log(`[${new Date().toISOString()}] 🔌 Disconnecting from device...`);
                 await zkDevice.disconnect();
-                console.log(`[${new Date().toISOString()}] 🔌 Disconnected successfully.`);
+                console.log(`[${new Date().toISOString()}] 🔌 Disconnected from ZK device.`);
             } catch (e) {
-                console.error('⚠️ Error during disconnect:', e.message || e);
+                console.error('Error disconnecting from ZK device:', e);
+            }
+        }
+    }
+};
+
+/**
+ * Fetches attendance logs directly from the ZK device without saving to database
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Promise<Object>} Raw attendance data from device
+ */
+exports.getAttendanceNew = async (req, res) => {
+    const deviceConfig = req.deviceConfig || {
+        ip: config.zk_ip,
+        port: config.zk_port,
+        timeout: config.zk_timeout,
+        readTimeout: config.zk_read_timeout
+    };
+
+    const zkDevice = new ZKLib(
+        deviceConfig.ip, 
+        parseInt(deviceConfig.port, 10), 
+        parseInt(deviceConfig.timeout, 10), 
+        parseInt(deviceConfig.readTimeout, 10)
+    );
+
+    let isConnected = false;
+
+    try {
+        console.log(`[${new Date().toISOString()}] 🔌 Starting connection to ZKTeco device...`);
+        await zkDevice.createSocket();
+        isConnected = true;
+        console.log(`[${new Date().toISOString()}] ✅ Device connected.`);
+        console.log(`[${new Date().toISOString()}] 📥 Fetching attendance logs...`);
+
+        // Get raw attendance data from device
+        const attendance = await zkDevice.getAttendances();
+
+        if (!attendance?.data?.length) {
+            console.warn('ℹ️ No attendance logs found on device.');
+            const response = {
+                success: true,
+                message: 'No attendance records found on device.',
+                result: [],
+                details: {
+                    count: 0,
+                    startDate: null,
+                    endDate: null,
+                    deviceInfo: {
+                        ip: deviceConfig.ip,
+                        port: deviceConfig.port,
+                        lastChecked: new Date().toISOString()
+                    }
+                }
+            };
+            return res ? res.json(response) : response;
+        }
+
+        // Format the raw data for better readability
+        const formattedData = attendance.data.map(log => {
+            const date = new Date(log.recordTime);
+            return {
+                userId: log.userId,
+                deviceUserId: log.deviceUserId,
+                recordTime: date.toISOString(),
+                date: date.toISOString().split('T')[0],
+                time: date.toTimeString().split(' ')[0],
+                type: log.type,
+                status: log.status,
+                // Include all original properties
+                ...log
+            };
+        });
+
+        const response = {
+            success: true,
+            message: 'Attendance logs retrieved successfully',
+            result: formattedData,
+            details: {
+                count: formattedData.length,
+                startDate: formattedData[0]?.date,
+                endDate: formattedData[formattedData.length - 1]?.date,
+                deviceInfo: {
+                    ip: deviceConfig.ip,
+                    port: deviceConfig.port,
+                    lastSynced: new Date().toISOString()
+                }
+            }
+        };
+
+        if (res) {
+            res.json(response);
+        }
+        return response;
+
+    } catch (error) {
+        console.error(`[${new Date().toISOString()}] ❌ Error fetching attendance:`, error);
+        const errorResponse = {
+            success: false,
+            error: error.message,
+            details: {
+                errorTime: new Date().toISOString(),
+                deviceInfo: {
+                    ip: deviceConfig.ip,
+                    port: deviceConfig.port,
+                    status: 'error'
+                }
+            }
+        };
+        
+        if (res) {
+            res.status(500).json(errorResponse);
+        }
+        throw error;
+        
+    } finally {
+        if (isConnected) {
+            try {
+                await zkDevice.disconnect();
+                console.log(`[${new Date().toISOString()}] 🔌 Disconnected from ZK device.`);
+            } catch (e) {
+                console.error('Error disconnecting from ZK device:', e);
             }
         }
     }
@@ -429,30 +568,30 @@ exports.zkService = async (req, res) => {
 
         try {
             // Get config based on admin ID
-            const { success, device } = await exports.getDevice({ 
-                body: { adminId: aid } 
-            });
+            // const { success, device } = await exports.getDevice({ 
+            //     body: { adminId: aid } 
+            // });
 
-            if (!success || !device) {
-                return res.status(500).json({
-                    success: false,
-                    error: 'Failed to retrieve device settings'
-                });
-            }
+            // if (!success || !device) {
+            //     return res.status(500).json({
+            //         success: false,
+            //         error: 'Device IP and port are required'
+            //     });
+            // }
 
-            // Add device config to request object
+            // Add device config to request object with defaults
             req.deviceConfig = {
-                ip: device.ip,
-                port: device.port,
-                timeout: device.timeout,
-                readTimeout: 10000
+                ip: data.zk_ip,
+                port: data.zk_port,
+                timeout: data.zk_timeout || 5000,  // Default timeout if not provided
+                readTimeout: data.zk_readTimeout || 10000  // Default readTimeout if not provided
             };
 
             // Handle the action with dynamic data
             let result;
             switch (action) {
                 case 'getAttendance':
-                    result = await exports.getAttendance(req, res);
+                    result = await exports.getAttendanceNew(req, res);
                     break;
                 case 'createOrUpdateUser':
                     // Check for required fields directly in the data object

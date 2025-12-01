@@ -49,19 +49,27 @@ app.use((err, req, res, next) => {
 // ---------------------------------------------------
 const PORT = process.env.PORT || 3000;
 
-// Start server only after DB connects
+// Start server
 (async () => {
   try {
-    // In development, connect to local mysql, but when built in pkg, I only need the ZK related functions 
-    if (process.env.APP_ENV !== 'production' || process.env.REQUIRE_MYSQL) {
-      await connect();
-      const conn = await getPool().getConnection();
-      console.log('✅ Connected to MySQL');
-      conn.release();
-  } else {
-      console.log('⚠️  Running in production mode with MySQL disabled');
+    // Check if we should skip MySQL connection
+    const skipMySQL = process.env.REQUIRE_MYSQL === 'false' || process.env.SKIP_MYSQL === 'true';
+    
+    // Only try to connect to MySQL if explicitly required and not skipped
+    if (!skipMySQL && (process.env.APP_ENV !== 'production' || process.env.REQUIRE_MYSQL === 'true')) {
+      try {
+        await connect();
+        const conn = await getPool().getConnection();
+        console.log('✅ Connected to MySQL');
+        conn.release();
+      } catch (err) {
+        console.error('⚠️  Failed to connect to MySQL, continuing without it:', err.message);
+        console.log('ℹ️  Only ZK functions are available');
+      }
+    } else {
+      console.log('⚠️  Running with MySQL disabled');
       console.log('ℹ️  Only ZK functions are available');
-  }
+    }
 
     const server = app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);

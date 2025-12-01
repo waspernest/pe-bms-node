@@ -64,6 +64,18 @@ const ensureLogsDirectory = async () => {
     }
     return logsDir;
 };
+
+// Helper function to get a connection and run a query
+const query = async (sql, params = []) => {
+    const connection = await getPool().getConnection();
+    try {
+        const [results] = await connection.query(sql, params);
+        return results;
+    } finally {
+        connection.release();
+    }
+};
+
 /**
  * Write import log file with file content and parsed data
  * @private
