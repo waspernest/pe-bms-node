@@ -21,7 +21,11 @@ const dbConfig = {
     database: (process.env.APP_ENV === 'development' || !process.env.DB_NAME) ? "pe_bms" : process.env.DB_NAME,
     waitForConnections: true,
     connectionLimit: 10,
-    queueLimit: 0
+    queueLimit: 0,
+    // Prevent DATE/DATETIME/TIMESTAMP from being converted into JS Date objects (which can shift dates)
+    dateStrings: true,
+    // Ensure MySQL session timezone is aligned with Asia/Manila (UTC+8)
+    timezone: '+08:00'
 };
 
 // Create a connection pool

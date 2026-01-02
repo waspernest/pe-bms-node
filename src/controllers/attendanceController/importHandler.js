@@ -102,7 +102,10 @@ class AttendanceImportHandler {
         
         if (formattedRow.LOG_DATE) {
             if (formattedRow.LOG_DATE instanceof Date) {
-                formattedRow.LOG_DATE = formattedRow.LOG_DATE.toISOString().split('T')[0];
+                const y = formattedRow.LOG_DATE.getFullYear();
+                const m = String(formattedRow.LOG_DATE.getMonth() + 1).padStart(2, '0');
+                const d = String(formattedRow.LOG_DATE.getDate()).padStart(2, '0');
+                formattedRow.LOG_DATE = `${y}-${m}-${d}`;
             }
         }
         
@@ -131,6 +134,45 @@ class AttendanceImportHandler {
             
             // Parse each line into { employeeId, timestamp }
             const records = [];
+
+            const parseDatTimestampToLocalDate = (timestamp) => {
+                const raw = (timestamp || '').toString().trim();
+                if (!raw) return null;
+
+                // Parse only the leading local date/time portion and ignore any trailing content
+                // (e.g. milliseconds, timezone suffix like Z/+08:00, extra columns).
+                // This prevents JS Date(string) timezone conversion from shifting the calendar date.
+                const m = raw.match(/^(\d{4})[-\/](\d{2})[-\/](\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+                if (m) {
+                    const year = Number(m[1]);
+                    const month = Number(m[2]);
+                    const day = Number(m[3]);
+                    const hour = m[4] != null ? Number(m[4]) : 0;
+                    const minute = m[5] != null ? Number(m[5]) : 0;
+                    const second = m[6] != null ? Number(m[6]) : 0;
+
+                    const dt = new Date(year, month - 1, day, hour, minute, second);
+                    if (Number.isNaN(dt.getTime())) return null;
+                    return dt;
+                }
+
+                return null;
+            };
+
+            const formatLocalDate = (dt) => {
+                const y = dt.getFullYear();
+                const mo = String(dt.getMonth() + 1).padStart(2, '0');
+                const da = String(dt.getDate()).padStart(2, '0');
+                return `${y}-${mo}-${da}`;
+            };
+
+            const formatLocalTime = (dt) => {
+                const hh = String(dt.getHours()).padStart(2, '0');
+                const mm = String(dt.getMinutes()).padStart(2, '0');
+                const ss = String(dt.getSeconds()).padStart(2, '0');
+                return `${hh}:${mm}:${ss}`;
+            };
+
             for (const line of lines) {
                 const parts = line.split('\t').map(part => part.trim());
                 if (parts.length >= 2) {
@@ -138,15 +180,15 @@ class AttendanceImportHandler {
                     const timestamp = parts[1];
                     
                     // Parse the timestamp
-                    const date = new Date(timestamp);
-                    if (isNaN(date.getTime())) {
+                    const date = parseDatTimestampToLocalDate(timestamp);
+                    if (!date) {
                         console.error(`Invalid timestamp format: ${timestamp}`);
                         continue;
                     }
                     
                     // Format date and time without external dependencies
-                    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD
-                    const timeStr = date.toTimeString().split(' ')[0]; // HH:MM:SS
+                    const dateStr = formatLocalDate(date); // YYYY-MM-DD (local)
+                    const timeStr = formatLocalTime(date); // HH:MM:SS (local)
                     
                     records.push({
                         employeeId,
@@ -157,12 +199,15 @@ class AttendanceImportHandler {
                 }
             }
             
-            // Sort records by employee ID and timestamp
+            // Sort records by employee ID, date, and time
             records.sort((a, b) => {
-                if (a.employeeId === b.employeeId) {
-                    return a.timestamp - b.timestamp;
+                if (a.employeeId !== b.employeeId) {
+                    return a.employeeId.localeCompare(b.employeeId);
                 }
-                return a.employeeId.localeCompare(b.employeeId);
+                if (a.date !== b.date) {
+                    return a.date.localeCompare(b.date);
+                }
+                return a.time.localeCompare(b.time);
             });
             
             // Group by employee and date
@@ -172,17 +217,22 @@ class AttendanceImportHandler {
                 const key = `${record.employeeId}_${record.date}`;
                 
                 if (!attendanceMap.has(key)) {
+                    // First entry for this employee/date
                     attendanceMap.set(key, {
                         zk_id: record.employeeId,
                         log_date: record.date,
                         time_in: record.time,
-                        time_out: null
+                        time_out: record.time  // Initialize time_out with first time
                     });
                 } else {
                     const attendance = attendanceMap.get(key);
-                    // Only update time_out if it's later than time_in
-                    if (!attendance.time_out || record.time > attendance.time_out) {
+                    // Update time_out if this is a later time
+                    if (record.time > attendance.time_out) {
                         attendance.time_out = record.time;
+                    }
+                    // Update time_in if this is an earlier time
+                    if (record.time < attendance.time_in) {
+                        attendance.time_in = record.time;
                     }
                 }
             }
@@ -260,31 +310,20 @@ class AttendanceImportHandler {
                 const existing = existingResult && existingResult[0] ? existingResult[0] : null;
                 
                 if (existing) {
-                    // Update existing record if needed
-                    let updateNeeded = false;
-                    const updates = [];
+                    // Always update with the new data from the log file
+                    const updates = [
+                        `time_in = '${time_in}'`,
+                        time_out ? `time_out = '${time_out}'` : 'time_out = NULL',
+                        'updated_at = NOW()'
+                    ];
                     
-                    if (time_in < existing.time_in) {
-                        updates.push(`time_in = '${time_in}'`);
-                        updateNeeded = true;
-                    }
-                    
-                    if (!existing.time_out || (time_out && time_out > existing.time_out)) {
-                        updates.push(`time_out = '${time_out || time_in}'`);
-                        updateNeeded = true;
-                    }
-                    
-                    if (updateNeeded) {
-                        await query(
-                            `UPDATE attendance 
-                            SET ${updates.join(', ')}, updated_at = NOW() 
-                            WHERE id = ?`,
-                            [existing.id]
-                        );
-                        updatedRows.push({ ...row, id: existing.id, status: 'updated' });
-                    } else {
-                        skippedRows.push({ ...row, id: existing.id, status: 'skipped', reason: 'No updates needed' });
-                    }
+                    await query(
+                        `UPDATE attendance 
+                        SET ${updates.join(', ')} 
+                        WHERE id = ?`,
+                        [existing.id]
+                    );
+                    updatedRows.push({ ...row, id: existing.id, status: 'updated' });
                 } else {
                     // Insert new record
                     try {

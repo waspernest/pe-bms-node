@@ -8,6 +8,12 @@ const importRoutes = require('./routes/importRoutes');
 
 const app = express();
 
+// Timezone verification
+if (process.env.TZ !== 'Asia/Manila') {
+    console.warn(`⚠️  process.env.TZ is '${process.env.TZ || 'undefined'}'. Recommended: 'Asia/Manila'`);
+}
+console.log(`🕒 Server local time: ${new Date().toString()}`);
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

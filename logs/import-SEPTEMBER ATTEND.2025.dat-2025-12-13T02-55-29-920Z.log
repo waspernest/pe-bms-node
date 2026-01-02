@@ -1,0 +1,1996 @@
+=== IMPORT ATTENDANCE LOG ===
+Timestamp: 2025-12-13T02:55:29.920Z
+File: SEPTEMBER ATTEND.2025.dat
+Size: 19803 bytes
+MIME Type: application/octet-stream
+
+=== ALL FILE CONTENT ===
+Total records found: 329
+[
+  {
+    "zk_id": "1",
+    "log_date": "2025-08-25",
+    "time_in": "07:19:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "1",
+    "log_date": "2025-08-26",
+    "time_in": "17:15:48",
+    "time_out": null
+  },
+  {
+    "zk_id": "1",
+    "log_date": "2025-08-27",
+    "time_in": "07:31:05",
+    "time_out": null
+  },
+  {
+    "zk_id": "1",
+    "log_date": "2025-08-28",
+    "time_in": "17:15:16",
+    "time_out": "07:47:16"
+  },
+  {
+    "zk_id": "1",
+    "log_date": "2025-08-29",
+    "time_in": "17:15:36",
+    "time_out": "07:36:41"
+  },
+  {
+    "zk_id": "1",
+    "log_date": "2025-08-30",
+    "time_in": "17:13:20",
+    "time_out": null
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-23",
+    "time_in": "19:34:30",
+    "time_out": null
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-24",
+    "time_in": "08:17:06",
+    "time_out": "19:34:41"
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:28",
+    "time_out": null
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-27",
+    "time_in": "07:11:57",
+    "time_out": null
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-28",
+    "time_in": "17:14:32",
+    "time_out": "07:36:46"
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-29",
+    "time_in": "20:09:06",
+    "time_out": "07:26:23"
+  },
+  {
+    "zk_id": "10",
+    "log_date": "2025-08-30",
+    "time_in": "20:09:15",
+    "time_out": null
+  },
+  {
+    "zk_id": "11",
+    "log_date": "2025-08-29",
+    "time_in": "19:46:05",
+    "time_out": null
+  },
+  {
+    "zk_id": "12",
+    "log_date": "2025-08-27",
+    "time_in": "07:28:29",
+    "time_out": null
+  },
+  {
+    "zk_id": "12",
+    "log_date": "2025-08-28",
+    "time_in": "20:11:16",
+    "time_out": null
+  },
+  {
+    "zk_id": "12",
+    "log_date": "2025-08-29",
+    "time_in": "19:23:02",
+    "time_out": null
+  },
+  {
+    "zk_id": "12",
+    "log_date": "2025-08-30",
+    "time_in": "08:09:59",
+    "time_out": "19:13:06"
+  },
+  {
+    "zk_id": "13",
+    "log_date": "2025-08-21",
+    "time_in": "05:58:35",
+    "time_out": null
+  },
+  {
+    "zk_id": "13",
+    "log_date": "2025-08-22",
+    "time_in": "19:00:32",
+    "time_out": null
+  },
+  {
+    "zk_id": "13",
+    "log_date": "2025-08-28",
+    "time_in": "06:00:37",
+    "time_out": null
+  },
+  {
+    "zk_id": "14",
+    "log_date": "2025-08-27",
+    "time_in": "07:53:04",
+    "time_out": null
+  },
+  {
+    "zk_id": "14",
+    "log_date": "2025-08-28",
+    "time_in": "17:16:43",
+    "time_out": "07:25:45"
+  },
+  {
+    "zk_id": "14",
+    "log_date": "2025-08-29",
+    "time_in": "17:08:50",
+    "time_out": "07:47:23"
+  },
+  {
+    "zk_id": "14",
+    "log_date": "2025-08-30",
+    "time_in": "17:15:06",
+    "time_out": null
+  },
+  {
+    "zk_id": "15",
+    "log_date": "2025-08-29",
+    "time_in": "07:37:34",
+    "time_out": null
+  },
+  {
+    "zk_id": "15",
+    "log_date": "2025-08-30",
+    "time_in": "17:09:10",
+    "time_out": null
+  },
+  {
+    "zk_id": "19",
+    "log_date": "2025-08-28",
+    "time_in": "07:47:56",
+    "time_out": null
+  },
+  {
+    "zk_id": "19",
+    "log_date": "2025-08-29",
+    "time_in": "17:08:58",
+    "time_out": "07:37:24"
+  },
+  {
+    "zk_id": "19",
+    "log_date": "2025-08-30",
+    "time_in": "17:08:38",
+    "time_out": null
+  },
+  {
+    "zk_id": "2",
+    "log_date": "2025-08-30",
+    "time_in": "19:27:37",
+    "time_out": null
+  },
+  {
+    "zk_id": "23",
+    "log_date": "2025-08-27",
+    "time_in": "11:31:58",
+    "time_out": null
+  },
+  {
+    "zk_id": "23",
+    "log_date": "2025-08-28",
+    "time_in": "07:26:59",
+    "time_out": null
+  },
+  {
+    "zk_id": "23",
+    "log_date": "2025-08-29",
+    "time_in": "17:08:54",
+    "time_out": "07:38:19"
+  },
+  {
+    "zk_id": "23",
+    "log_date": "2025-08-30",
+    "time_in": "17:09:04",
+    "time_out": null
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-23",
+    "time_in": "18:36:25",
+    "time_out": null
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:47",
+    "time_out": "18:09:11"
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:24",
+    "time_out": null
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-27",
+    "time_in": "07:48:33",
+    "time_out": null
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-28",
+    "time_in": "17:13:47",
+    "time_out": "07:48:39"
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-29",
+    "time_in": "20:08:49",
+    "time_out": "07:38:56"
+  },
+  {
+    "zk_id": "24",
+    "log_date": "2025-08-30",
+    "time_in": "20:09:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-20",
+    "time_in": "07:42:14",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-21",
+    "time_in": "07:02:25",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-22",
+    "time_in": "20:09:34",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-23",
+    "time_in": "19:31:21",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:07",
+    "time_out": "19:26:28"
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:37",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-28",
+    "time_in": "07:30:35",
+    "time_out": null
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-29",
+    "time_in": "20:08:53",
+    "time_out": "07:29:48"
+  },
+  {
+    "zk_id": "26",
+    "log_date": "2025-08-30",
+    "time_in": "20:12:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "27",
+    "log_date": "2025-08-28",
+    "time_in": "06:50:22",
+    "time_out": null
+  },
+  {
+    "zk_id": "27",
+    "log_date": "2025-08-29",
+    "time_in": "16:07:25",
+    "time_out": "06:58:34"
+  },
+  {
+    "zk_id": "27",
+    "log_date": "2025-08-30",
+    "time_in": "16:02:56",
+    "time_out": null
+  },
+  {
+    "zk_id": "29",
+    "log_date": "2025-08-27",
+    "time_in": "07:39:39",
+    "time_out": null
+  },
+  {
+    "zk_id": "29",
+    "log_date": "2025-08-29",
+    "time_in": "19:37:17",
+    "time_out": null
+  },
+  {
+    "zk_id": "29",
+    "log_date": "2025-08-30",
+    "time_in": "08:10:03",
+    "time_out": "19:40:42"
+  },
+  {
+    "zk_id": "30",
+    "log_date": "2025-08-27",
+    "time_in": "07:29:13",
+    "time_out": null
+  },
+  {
+    "zk_id": "30",
+    "log_date": "2025-08-28",
+    "time_in": "20:11:18",
+    "time_out": null
+  },
+  {
+    "zk_id": "30",
+    "log_date": "2025-08-29",
+    "time_in": "19:10:27",
+    "time_out": null
+  },
+  {
+    "zk_id": "30",
+    "log_date": "2025-08-30",
+    "time_in": "08:10:08",
+    "time_out": "19:13:14"
+  },
+  {
+    "zk_id": "34",
+    "log_date": "2025-08-15",
+    "time_in": "11:10:54",
+    "time_out": null
+  },
+  {
+    "zk_id": "34",
+    "log_date": "2025-08-28",
+    "time_in": "17:14:18",
+    "time_out": null
+  },
+  {
+    "zk_id": "34",
+    "log_date": "2025-08-29",
+    "time_in": "08:09:00",
+    "time_out": "20:12:23"
+  },
+  {
+    "zk_id": "34",
+    "log_date": "2025-08-30",
+    "time_in": "17:13:02",
+    "time_out": null
+  },
+  {
+    "zk_id": "36",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:10",
+    "time_out": "19:17:57"
+  },
+  {
+    "zk_id": "36",
+    "log_date": "2025-08-25",
+    "time_in": "08:14:28",
+    "time_out": null
+  },
+  {
+    "zk_id": "36",
+    "log_date": "2025-08-28",
+    "time_in": "07:56:51",
+    "time_out": null
+  },
+  {
+    "zk_id": "36",
+    "log_date": "2025-08-29",
+    "time_in": "20:12:32",
+    "time_out": "07:33:22"
+  },
+  {
+    "zk_id": "36",
+    "log_date": "2025-08-30",
+    "time_in": "20:11:58",
+    "time_out": null
+  },
+  {
+    "zk_id": "4",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:35",
+    "time_out": "18:07:43"
+  },
+  {
+    "zk_id": "4",
+    "log_date": "2025-08-25",
+    "time_in": "08:14:34",
+    "time_out": null
+  },
+  {
+    "zk_id": "40",
+    "log_date": "2025-08-29",
+    "time_in": "07:38:16",
+    "time_out": null
+  },
+  {
+    "zk_id": "40",
+    "log_date": "2025-08-30",
+    "time_in": "17:08:56",
+    "time_out": null
+  },
+  {
+    "zk_id": "41",
+    "log_date": "2025-08-22",
+    "time_in": "08:16:17",
+    "time_out": null
+  },
+  {
+    "zk_id": "41",
+    "log_date": "2025-08-27",
+    "time_in": "07:48:30",
+    "time_out": null
+  },
+  {
+    "zk_id": "41",
+    "log_date": "2025-08-29",
+    "time_in": "19:41:40",
+    "time_out": null
+  },
+  {
+    "zk_id": "41",
+    "log_date": "2025-08-30",
+    "time_in": "08:15:43",
+    "time_out": "19:27:21"
+  },
+  {
+    "zk_id": "42",
+    "log_date": "2025-08-16",
+    "time_in": "12:43:16",
+    "time_out": null
+  },
+  {
+    "zk_id": "44",
+    "log_date": "2025-08-23",
+    "time_in": "19:05:37",
+    "time_out": null
+  },
+  {
+    "zk_id": "44",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:41",
+    "time_out": "18:45:48"
+  },
+  {
+    "zk_id": "44",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:19",
+    "time_out": null
+  },
+  {
+    "zk_id": "44",
+    "log_date": "2025-08-29",
+    "time_in": "07:16:53",
+    "time_out": null
+  },
+  {
+    "zk_id": "44",
+    "log_date": "2025-08-30",
+    "time_in": "17:09:01",
+    "time_out": null
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-23",
+    "time_in": "19:31:38",
+    "time_out": null
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:25",
+    "time_out": "19:29:08"
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:32",
+    "time_out": null
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-27",
+    "time_in": "07:21:55",
+    "time_out": null
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-28",
+    "time_in": "17:14:37",
+    "time_out": "07:30:32"
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-29",
+    "time_in": "20:09:02",
+    "time_out": "07:29:52"
+  },
+  {
+    "zk_id": "45",
+    "log_date": "2025-08-30",
+    "time_in": "20:12:01",
+    "time_out": null
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-21",
+    "time_in": "07:02:28",
+    "time_out": null
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-22",
+    "time_in": "20:09:32",
+    "time_out": null
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-24",
+    "time_in": "19:26:32",
+    "time_out": null
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:40",
+    "time_out": "19:36:19"
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-26",
+    "time_in": "08:11:30",
+    "time_out": "19:44:27"
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-28",
+    "time_in": "07:30:38",
+    "time_out": null
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-29",
+    "time_in": "20:08:45",
+    "time_out": "07:29:55"
+  },
+  {
+    "zk_id": "46",
+    "log_date": "2025-08-30",
+    "time_in": "20:09:01",
+    "time_out": null
+  },
+  {
+    "zk_id": "47",
+    "log_date": "2025-08-24",
+    "time_in": "08:02:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "47",
+    "log_date": "2025-08-26",
+    "time_in": "08:19:54",
+    "time_out": null
+  },
+  {
+    "zk_id": "47",
+    "log_date": "2025-08-29",
+    "time_in": "07:46:01",
+    "time_out": null
+  },
+  {
+    "zk_id": "47",
+    "log_date": "2025-08-30",
+    "time_in": "17:09:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "5",
+    "log_date": "2025-08-30",
+    "time_in": "17:13:16",
+    "time_out": null
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-19",
+    "time_in": "07:57:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-20",
+    "time_in": "17:14:27",
+    "time_out": "07:49:33"
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-21",
+    "time_in": "20:09:18",
+    "time_out": null
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-22",
+    "time_in": "08:07:55",
+    "time_out": "20:09:20"
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-23",
+    "time_in": "19:50:34",
+    "time_out": null
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-24",
+    "time_in": "08:16:58",
+    "time_out": "19:41:30"
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:25",
+    "time_out": "07:55:33"
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-26",
+    "time_in": "17:16:01",
+    "time_out": "07:56:20"
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-27",
+    "time_in": "17:14:53",
+    "time_out": null
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-28",
+    "time_in": "08:05:16",
+    "time_out": "17:15:30"
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-29",
+    "time_in": "20:08:55",
+    "time_out": null
+  },
+  {
+    "zk_id": "50",
+    "log_date": "2025-08-30",
+    "time_in": "08:11:27",
+    "time_out": "20:08:59"
+  },
+  {
+    "zk_id": "51",
+    "log_date": "2025-08-30",
+    "time_in": "19:52:03",
+    "time_out": null
+  },
+  {
+    "zk_id": "52",
+    "log_date": "2025-08-28",
+    "time_in": "17:14:22",
+    "time_out": "07:47:20"
+  },
+  {
+    "zk_id": "52",
+    "log_date": "2025-08-29",
+    "time_in": "20:09:11",
+    "time_out": "07:44:13"
+  },
+  {
+    "zk_id": "52",
+    "log_date": "2025-08-30",
+    "time_in": "20:09:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "54",
+    "log_date": "2025-08-27",
+    "time_in": "20:14:37",
+    "time_out": "07:55:56"
+  },
+  {
+    "zk_id": "54",
+    "log_date": "2025-08-28",
+    "time_in": "20:14:10",
+    "time_out": null
+  },
+  {
+    "zk_id": "54",
+    "log_date": "2025-08-29",
+    "time_in": "19:37:20",
+    "time_out": null
+  },
+  {
+    "zk_id": "54",
+    "log_date": "2025-08-30",
+    "time_in": "08:15:48",
+    "time_out": "19:45:02"
+  },
+  {
+    "zk_id": "55",
+    "log_date": "2025-08-24",
+    "time_in": "08:14:15",
+    "time_out": "19:51:25"
+  },
+  {
+    "zk_id": "55",
+    "log_date": "2025-08-25",
+    "time_in": "08:14:40",
+    "time_out": null
+  },
+  {
+    "zk_id": "55",
+    "log_date": "2025-08-28",
+    "time_in": "17:14:14",
+    "time_out": "07:48:41"
+  },
+  {
+    "zk_id": "55",
+    "log_date": "2025-08-29",
+    "time_in": "20:12:35",
+    "time_out": "07:57:08"
+  },
+  {
+    "zk_id": "55",
+    "log_date": "2025-08-30",
+    "time_in": "18:13:24",
+    "time_out": null
+  },
+  {
+    "zk_id": "56",
+    "log_date": "2025-08-14",
+    "time_in": "10:07:32",
+    "time_out": null
+  },
+  {
+    "zk_id": "56",
+    "log_date": "2025-08-27",
+    "time_in": "19:41:47",
+    "time_out": null
+  },
+  {
+    "zk_id": "57",
+    "log_date": "2025-08-29",
+    "time_in": "20:12:38",
+    "time_out": null
+  },
+  {
+    "zk_id": "57",
+    "log_date": "2025-08-30",
+    "time_in": "09:00:29",
+    "time_out": "20:12:09"
+  },
+  {
+    "zk_id": "58",
+    "log_date": "2025-08-27",
+    "time_in": "07:39:46",
+    "time_out": null
+  },
+  {
+    "zk_id": "58",
+    "log_date": "2025-08-28",
+    "time_in": "20:11:11",
+    "time_out": null
+  },
+  {
+    "zk_id": "58",
+    "log_date": "2025-08-29",
+    "time_in": "19:32:44",
+    "time_out": null
+  },
+  {
+    "zk_id": "58",
+    "log_date": "2025-08-30",
+    "time_in": "08:15:53",
+    "time_out": "19:21:27"
+  },
+  {
+    "zk_id": "59",
+    "log_date": "2025-08-28",
+    "time_in": "19:29:32",
+    "time_out": null
+  },
+  {
+    "zk_id": "6",
+    "log_date": "2025-08-30",
+    "time_in": "17:13:10",
+    "time_out": null
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-20",
+    "time_in": "07:32:26",
+    "time_out": null
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-22",
+    "time_in": "20:09:40",
+    "time_out": null
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-23",
+    "time_in": "19:55:05",
+    "time_out": null
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-24",
+    "time_in": "08:16:56",
+    "time_out": "19:39:19"
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:13",
+    "time_out": "07:36:14"
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-26",
+    "time_in": "20:16:33",
+    "time_out": "07:47:03"
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-27",
+    "time_in": "17:14:48",
+    "time_out": "07:33:33"
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-28",
+    "time_in": "17:13:51",
+    "time_out": "07:29:52"
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-29",
+    "time_in": "20:12:41",
+    "time_out": "07:57:03"
+  },
+  {
+    "zk_id": "60",
+    "log_date": "2025-08-30",
+    "time_in": "20:09:04",
+    "time_out": null
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-23",
+    "time_in": "19:31:45",
+    "time_out": null
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-24",
+    "time_in": "08:16:52",
+    "time_out": "19:21:25"
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-25",
+    "time_in": "08:11:39",
+    "time_out": null
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-27",
+    "time_in": "07:38:41",
+    "time_out": null
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-28",
+    "time_in": "17:14:42",
+    "time_out": "07:44:58"
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-29",
+    "time_in": "20:09:04",
+    "time_out": "07:43:19"
+  },
+  {
+    "zk_id": "62",
+    "log_date": "2025-08-30",
+    "time_in": "20:09:21",
+    "time_out": null
+  },
+  {
+    "zk_id": "63",
+    "log_date": "2025-08-29",
+    "time_in": "19:30:22",
+    "time_out": null
+  },
+  {
+    "zk_id": "63",
+    "log_date": "2025-08-30",
+    "time_in": "08:16:17",
+    "time_out": "19:21:36"
+  },
+  {
+    "zk_id": "64",
+    "log_date": "2025-08-30",
+    "time_in": "19:52:06",
+    "time_out": null
+  },
+  {
+    "zk_id": "7",
+    "log_date": "2025-08-29",
+    "time_in": "19:32:54",
+    "time_out": null
+  },
+  {
+    "zk_id": "7",
+    "log_date": "2025-08-30",
+    "time_in": "08:10:11",
+    "time_out": "19:21:42"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-19",
+    "time_in": "05:58:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-20",
+    "time_in": "15:10:35",
+    "time_out": "05:56:13"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-21",
+    "time_in": "15:19:22",
+    "time_out": "05:57:06"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-22",
+    "time_in": "15:07:27",
+    "time_out": "06:01:04"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-23",
+    "time_in": "15:18:51",
+    "time_out": null
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-25",
+    "time_in": "05:58:50",
+    "time_out": null
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-26",
+    "time_in": "15:11:33",
+    "time_out": "05:57:19"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-27",
+    "time_in": "15:14:48",
+    "time_out": "06:03:23"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-28",
+    "time_in": "15:06:50",
+    "time_out": "06:00:22"
+  },
+  {
+    "zk_id": "70",
+    "log_date": "2025-08-29",
+    "time_in": "15:07:20",
+    "time_out": null
+  },
+  {
+    "zk_id": "71",
+    "log_date": "2025-08-29",
+    "time_in": "16:05:49",
+    "time_out": null
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-19",
+    "time_in": "15:03:31",
+    "time_out": "06:56:26"
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-20",
+    "time_in": "05:56:21",
+    "time_out": null
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-21",
+    "time_in": "15:33:39",
+    "time_out": "05:57:53"
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-22",
+    "time_in": "15:04:06",
+    "time_out": null
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-25",
+    "time_in": "05:42:42",
+    "time_out": null
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-26",
+    "time_in": "15:00:49",
+    "time_out": null
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-28",
+    "time_in": "15:02:24",
+    "time_out": "05:51:59"
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-29",
+    "time_in": "15:04:52",
+    "time_out": null
+  },
+  {
+    "zk_id": "72",
+    "log_date": "2025-08-30",
+    "time_in": "15:01:51",
+    "time_out": null
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-19",
+    "time_in": "05:42:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-20",
+    "time_in": "06:38:50",
+    "time_out": null
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-21",
+    "time_in": "00:00:19",
+    "time_out": null
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-24",
+    "time_in": "05:41:22",
+    "time_out": null
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-25",
+    "time_in": "15:05:27",
+    "time_out": "05:34:52"
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-26",
+    "time_in": "15:34:14",
+    "time_out": "16:01:55"
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-27",
+    "time_in": "15:07:01",
+    "time_out": "05:59:34"
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-28",
+    "time_in": "16:10:06",
+    "time_out": "06:15:09"
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-29",
+    "time_in": "05:46:19",
+    "time_out": "06:02:46"
+  },
+  {
+    "zk_id": "73",
+    "log_date": "2025-08-30",
+    "time_in": "15:07:15",
+    "time_out": null
+  },
+  {
+    "zk_id": "74",
+    "log_date": "2025-08-19",
+    "time_in": "05:56:07",
+    "time_out": null
+  },
+  {
+    "zk_id": "74",
+    "log_date": "2025-08-25",
+    "time_in": "06:09:02",
+    "time_out": null
+  },
+  {
+    "zk_id": "74",
+    "log_date": "2025-08-26",
+    "time_in": "19:05:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "75",
+    "log_date": "2025-08-20",
+    "time_in": "19:04:16",
+    "time_out": null
+  },
+  {
+    "zk_id": "75",
+    "log_date": "2025-08-26",
+    "time_in": "19:04:52",
+    "time_out": "05:43:20"
+  },
+  {
+    "zk_id": "75",
+    "log_date": "2025-08-27",
+    "time_in": "19:02:42",
+    "time_out": "05:45:16"
+  },
+  {
+    "zk_id": "75",
+    "log_date": "2025-08-28",
+    "time_in": "19:06:43",
+    "time_out": null
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-19",
+    "time_in": "05:56:46",
+    "time_out": null
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-20",
+    "time_in": "15:09:20",
+    "time_out": "06:04:45"
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-21",
+    "time_in": "00:01:54",
+    "time_out": "06:16:58"
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-22",
+    "time_in": "00:02:26",
+    "time_out": null
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-23",
+    "time_in": "06:11:36",
+    "time_out": null
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-24",
+    "time_in": "15:15:58",
+    "time_out": null
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-26",
+    "time_in": "06:17:24",
+    "time_out": null
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-27",
+    "time_in": "15:09:48",
+    "time_out": "06:22:30"
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-28",
+    "time_in": "15:10:24",
+    "time_out": "06:11:06"
+  },
+  {
+    "zk_id": "76",
+    "log_date": "2025-08-29",
+    "time_in": "06:01:43",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-19",
+    "time_in": "06:15:24",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-20",
+    "time_in": "15:06:14",
+    "time_out": "06:03:27"
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-21",
+    "time_in": "00:01:50",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-22",
+    "time_in": "00:00:46",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-23",
+    "time_in": "15:05:44",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-25",
+    "time_in": "06:03:01",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-26",
+    "time_in": "15:02:08",
+    "time_out": "06:03:14"
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-27",
+    "time_in": "18:01:15",
+    "time_out": "06:09:18"
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-28",
+    "time_in": "15:04:26",
+    "time_out": null
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-29",
+    "time_in": "05:46:25",
+    "time_out": "06:01:53"
+  },
+  {
+    "zk_id": "77",
+    "log_date": "2025-08-30",
+    "time_in": "15:02:05",
+    "time_out": null
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-20",
+    "time_in": "18:16:43",
+    "time_out": "05:55:40"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-21",
+    "time_in": "15:18:43",
+    "time_out": "05:58:05"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-22",
+    "time_in": "15:06:53",
+    "time_out": "05:36:52"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-23",
+    "time_in": "15:12:33",
+    "time_out": null
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-25",
+    "time_in": "05:33:14",
+    "time_out": null
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-26",
+    "time_in": "18:19:45",
+    "time_out": "05:56:24"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-27",
+    "time_in": "18:02:23",
+    "time_out": "05:35:31"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-28",
+    "time_in": "15:07:10",
+    "time_out": "05:37:26"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-29",
+    "time_in": "15:07:50",
+    "time_out": "05:39:23"
+  },
+  {
+    "zk_id": "78",
+    "log_date": "2025-08-30",
+    "time_in": "15:09:57",
+    "time_out": null
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-20",
+    "time_in": "05:58:21",
+    "time_out": null
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-21",
+    "time_in": "15:18:51",
+    "time_out": "05:38:59"
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-22",
+    "time_in": "15:07:31",
+    "time_out": null
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-23",
+    "time_in": "05:42:55",
+    "time_out": null
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-24",
+    "time_in": "15:01:36",
+    "time_out": null
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-25",
+    "time_in": "05:48:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-26",
+    "time_in": "18:18:50",
+    "time_out": "05:47:48"
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-27",
+    "time_in": "18:01:10",
+    "time_out": "05:40:39"
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-28",
+    "time_in": "15:06:57",
+    "time_out": "05:40:46"
+  },
+  {
+    "zk_id": "79",
+    "log_date": "2025-08-29",
+    "time_in": "15:07:01",
+    "time_out": null
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-20",
+    "time_in": "06:00:52",
+    "time_out": null
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-21",
+    "time_in": "15:19:02",
+    "time_out": "05:33:36"
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-22",
+    "time_in": "16:28:39",
+    "time_out": null
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-23",
+    "time_in": "05:41:15",
+    "time_out": null
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-25",
+    "time_in": "07:36:22",
+    "time_out": null
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-26",
+    "time_in": "18:19:40",
+    "time_out": "05:56:42"
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-27",
+    "time_in": "18:02:10",
+    "time_out": "06:09:21"
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-28",
+    "time_in": "15:06:40",
+    "time_out": "05:54:02"
+  },
+  {
+    "zk_id": "80",
+    "log_date": "2025-08-29",
+    "time_in": "15:12:27",
+    "time_out": null
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-20",
+    "time_in": "05:54:20",
+    "time_out": null
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-21",
+    "time_in": "15:02:27",
+    "time_out": "06:04:20"
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-22",
+    "time_in": "15:27:51",
+    "time_out": null
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-25",
+    "time_in": "06:00:18",
+    "time_out": null
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-26",
+    "time_in": "17:37:50",
+    "time_out": "05:59:00"
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-27",
+    "time_in": "18:01:21",
+    "time_out": "06:00:02"
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-28",
+    "time_in": "17:32:03",
+    "time_out": "05:58:31"
+  },
+  {
+    "zk_id": "81",
+    "log_date": "2025-08-29",
+    "time_in": "15:24:42",
+    "time_out": null
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-20",
+    "time_in": "18:40:30",
+    "time_out": "07:00:09"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-21",
+    "time_in": "00:02:21",
+    "time_out": "06:06:01"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-22",
+    "time_in": "00:01:08",
+    "time_out": null
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-23",
+    "time_in": "06:57:39",
+    "time_out": null
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-24",
+    "time_in": "16:02:02",
+    "time_out": "07:03:38"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-25",
+    "time_in": "16:03:55",
+    "time_out": "06:06:55"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-26",
+    "time_in": "18:19:48",
+    "time_out": "06:12:50"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-27",
+    "time_in": "18:02:03",
+    "time_out": "06:14:01"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-28",
+    "time_in": "15:03:33",
+    "time_out": "06:15:17"
+  },
+  {
+    "zk_id": "82",
+    "log_date": "2025-08-29",
+    "time_in": "06:02:37",
+    "time_out": null
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-23",
+    "time_in": "15:02:00",
+    "time_out": null
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-24",
+    "time_in": "05:58:09",
+    "time_out": null
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-25",
+    "time_in": "15:01:15",
+    "time_out": "06:03:16"
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-26",
+    "time_in": "15:01:05",
+    "time_out": "06:05:30"
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-27",
+    "time_in": "15:05:40",
+    "time_out": "06:04:08"
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-28",
+    "time_in": "15:07:25",
+    "time_out": "05:57:50"
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-29",
+    "time_in": "05:52:46",
+    "time_out": "06:02:53"
+  },
+  {
+    "zk_id": "83",
+    "log_date": "2025-08-30",
+    "time_in": "15:15:28",
+    "time_out": null
+  },
+  {
+    "zk_id": "85",
+    "log_date": "2025-08-26",
+    "time_in": "09:38:07",
+    "time_out": "22:01:15"
+  },
+  {
+    "zk_id": "85",
+    "log_date": "2025-08-27",
+    "time_in": "06:06:10",
+    "time_out": null
+  },
+  {
+    "zk_id": "85",
+    "log_date": "2025-08-28",
+    "time_in": "15:04:12",
+    "time_out": "06:00:30"
+  },
+  {
+    "zk_id": "85",
+    "log_date": "2025-08-29",
+    "time_in": "05:50:25",
+    "time_out": "06:02:22"
+  },
+  {
+    "zk_id": "85",
+    "log_date": "2025-08-30",
+    "time_in": "15:08:47",
+    "time_out": null
+  },
+  {
+    "zk_id": "86",
+    "log_date": "2025-08-26",
+    "time_in": "15:00:32",
+    "time_out": "05:51:12"
+  },
+  {
+    "zk_id": "86",
+    "log_date": "2025-08-27",
+    "time_in": "15:06:16",
+    "time_out": "05:24:42"
+  },
+  {
+    "zk_id": "86",
+    "log_date": "2025-08-28",
+    "time_in": "15:04:28",
+    "time_out": "05:25:54"
+  },
+  {
+    "zk_id": "86",
+    "log_date": "2025-08-29",
+    "time_in": "06:03:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "86",
+    "log_date": "2025-08-30",
+    "time_in": "15:02:25",
+    "time_out": null
+  },
+  {
+    "zk_id": "87",
+    "log_date": "2025-08-29",
+    "time_in": "07:13:12",
+    "time_out": null
+  },
+  {
+    "zk_id": "87",
+    "log_date": "2025-08-30",
+    "time_in": "16:31:26",
+    "time_out": null
+  },
+  {
+    "zk_id": "88",
+    "log_date": "2025-08-26",
+    "time_in": "16:32:26",
+    "time_out": null
+  },
+  {
+    "zk_id": "88",
+    "log_date": "2025-08-27",
+    "time_in": "07:13:11",
+    "time_out": null
+  },
+  {
+    "zk_id": "88",
+    "log_date": "2025-08-28",
+    "time_in": "16:31:04",
+    "time_out": "07:45:52"
+  },
+  {
+    "zk_id": "88",
+    "log_date": "2025-08-29",
+    "time_in": "16:32:52",
+    "time_out": "07:24:04"
+  },
+  {
+    "zk_id": "89",
+    "log_date": "2025-08-26",
+    "time_in": "15:09:36",
+    "time_out": "05:56:38"
+  },
+  {
+    "zk_id": "89",
+    "log_date": "2025-08-27",
+    "time_in": "15:06:03",
+    "time_out": "05:58:55"
+  },
+  {
+    "zk_id": "89",
+    "log_date": "2025-08-28",
+    "time_in": "15:02:58",
+    "time_out": "06:01:18"
+  },
+  {
+    "zk_id": "89",
+    "log_date": "2025-08-29",
+    "time_in": "15:08:33",
+    "time_out": "06:01:05"
+  },
+  {
+    "zk_id": "89",
+    "log_date": "2025-08-30",
+    "time_in": "15:15:11",
+    "time_out": null
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-15",
+    "time_in": "11:12:58",
+    "time_out": null
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-18",
+    "time_in": "08:11:10",
+    "time_out": "17:09:26"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-19",
+    "time_in": "08:09:10",
+    "time_out": "17:13:44"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-20",
+    "time_in": "17:28:49",
+    "time_out": "07:50:48"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-21",
+    "time_in": "16:57:56",
+    "time_out": "17:09:02"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-22",
+    "time_in": "08:04:00",
+    "time_out": "17:04:03"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-23",
+    "time_in": "08:05:22",
+    "time_out": "17:05:42"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-26",
+    "time_in": "08:16:44",
+    "time_out": "17:21:23"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-27",
+    "time_in": "17:07:43",
+    "time_out": "07:21:30"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-28",
+    "time_in": "16:49:37",
+    "time_out": "07:28:14"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-29",
+    "time_in": "17:15:26",
+    "time_out": "07:25:14"
+  },
+  {
+    "zk_id": "9",
+    "log_date": "2025-08-30",
+    "time_in": "11:40:47",
+    "time_out": null
+  },
+  {
+    "zk_id": "92",
+    "log_date": "2025-08-30",
+    "time_in": "14:11:16",
+    "time_out": null
+  },
+  {
+    "zk_id": "93",
+    "log_date": "2025-08-26",
+    "time_in": "07:23:29",
+    "time_out": null
+  },
+  {
+    "zk_id": "93",
+    "log_date": "2025-08-27",
+    "time_in": "12:27:28",
+    "time_out": "07:25:11"
+  },
+  {
+    "zk_id": "93",
+    "log_date": "2025-08-28",
+    "time_in": "16:31:00",
+    "time_out": "07:22:55"
+  },
+  {
+    "zk_id": "93",
+    "log_date": "2025-08-29",
+    "time_in": "16:32:29",
+    "time_out": "07:25:56"
+  },
+  {
+    "zk_id": "93",
+    "log_date": "2025-08-30",
+    "time_in": "16:32:00",
+    "time_out": null
+  },
+  {
+    "zk_id": "94",
+    "log_date": "2025-08-26",
+    "time_in": "16:32:35",
+    "time_out": "07:24:48"
+  },
+  {
+    "zk_id": "94",
+    "log_date": "2025-08-27",
+    "time_in": "16:32:13",
+    "time_out": "07:29:18"
+  },
+  {
+    "zk_id": "94",
+    "log_date": "2025-08-28",
+    "time_in": "16:30:53",
+    "time_out": "07:27:09"
+  },
+  {
+    "zk_id": "95",
+    "log_date": "2025-08-28",
+    "time_in": "16:31:24",
+    "time_out": "07:27:19"
+  },
+  {
+    "zk_id": "95",
+    "log_date": "2025-08-29",
+    "time_in": "16:32:59",
+    "time_out": null
+  },
+  {
+    "zk_id": "96",
+    "log_date": "2025-08-27",
+    "time_in": "07:39:24",
+    "time_out": null
+  },
+  {
+    "zk_id": "96",
+    "log_date": "2025-08-28",
+    "time_in": "16:36:35",
+    "time_out": "07:35:06"
+  },
+  {
+    "zk_id": "97",
+    "log_date": "2025-08-26",
+    "time_in": "16:31:46",
+    "time_out": "06:25:52"
+  },
+  {
+    "zk_id": "97",
+    "log_date": "2025-08-27",
+    "time_in": "16:32:20",
+    "time_out": "06:26:18"
+  },
+  {
+    "zk_id": "97",
+    "log_date": "2025-08-28",
+    "time_in": "16:31:29",
+    "time_out": "06:28:51"
+  },
+  {
+    "zk_id": "97",
+    "log_date": "2025-08-29",
+    "time_in": "16:32:47",
+    "time_out": "06:37:31"
+  },
+  {
+    "zk_id": "97",
+    "log_date": "2025-08-30",
+    "time_in": "16:31:47",
+    "time_out": null
+  },
+  {
+    "zk_id": "98",
+    "log_date": "2025-08-26",
+    "time_in": "07:10:52",
+    "time_out": null
+  },
+  {
+    "zk_id": "98",
+    "log_date": "2025-08-27",
+    "time_in": "16:32:00",
+    "time_out": "07:23:34"
+  },
+  {
+    "zk_id": "98",
+    "log_date": "2025-08-28",
+    "time_in": "16:31:18",
+    "time_out": "07:16:07"
+  },
+  {
+    "zk_id": "98",
+    "log_date": "2025-08-29",
+    "time_in": "16:32:25",
+    "time_out": null
+  }
+]
+
+=== IMPORT RESULTS ===
+Status: processing
+Total processed: 329
+Inserted: 0
+Skipped: 0
+Failed: 0
+
+=== ERRORS ===
+No errors
+
+=== END OF LOG ===
