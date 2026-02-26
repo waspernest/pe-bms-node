@@ -17,6 +17,9 @@ router.post("/", attendanceController.logAttendance); // Manual test of logging 
 router.post("/import", upload.single('file'), attendanceController.importAttendance); // Route for importing attendance data
 router.post("/import/new", upload.single('file'), attendanceController.importAttendanceNew); // Route for importing attendance data
 router.post("/add-record", attendanceController.addAttendanceRecord); // Route for adding attendance record
+router.post("/sync-record", attendanceController.logAttendance); // Route for saving attendance from device
+router.post("/sync-record-new", attendanceController.syncAttendanceNew); // Route for syncing attendance from device with duplicate check
+router.post("/sync-record-with-logic", attendanceController.syncAttendanceWithLogic); // Route for syncing attendance with proper time_in/time_out logic
 router.put("/update-record/:id", attendanceController.updateAttendanceRecord); // Route for updating attendance record
 router.delete("/delete-record/:id", attendanceController.deleteAttendanceRecord); // Route for deleting attendance record
 router.delete("/delete-record-manual", attendanceController.deleteAttendanceRecordManual); // Route for manually deleting attendance record

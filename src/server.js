@@ -1,12 +1,45 @@
 const http = require('http');
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
 const { setupSocket } = require('./sockets');
 const { connect, getPool } = require('./mysql');
 const { getConfigPath } = require('./utils/setupConfig');
 const importRoutes = require('./routes/importRoutes');
 
 const app = express();
+
+const logFilePath = path.join(__dirname, 'backend.log');
+const logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+
+const formatLogLine = (level, args) => {
+    const msg = args.map(a => {
+        if (a instanceof Error) return a.stack || a.message;
+        if (typeof a === 'object') {
+            try { return JSON.stringify(a); } catch { return String(a); }
+        }
+        return String(a);
+    }).join(' ');
+    return `[${new Date().toISOString()}] ${level} ${msg}\n`;
+};
+
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+console.log = (...args) => {
+    logStream.write(formatLogLine('INFO', args));
+    originalConsoleLog(...args);
+};
+console.warn = (...args) => {
+    logStream.write(formatLogLine('WARN', args));
+    originalConsoleWarn(...args);
+};
+console.error = (...args) => {
+    logStream.write(formatLogLine('ERROR', args));
+    originalConsoleError(...args);
+};
 
 // Timezone verification
 if (process.env.TZ !== 'Asia/Manila') {
@@ -15,12 +48,12 @@ if (process.env.TZ !== 'Asia/Manila') {
 console.log(`🕒 Server local time: ${new Date().toString()}`);
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Increase JSON limit for large attendance data
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Increase URL-encoded limit
 
 // Configure CORS for development
 app.use(cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true

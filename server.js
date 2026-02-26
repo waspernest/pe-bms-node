@@ -16,10 +16,10 @@ const { getConfigPath } = require('./src/utils/setupConfig');
 const app = express();
 
 // Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' })); // Increase JSON limit for large attendance data
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Increase URL-encoded limit
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: process.env.FRONTEND_URL || ['http://localhost:3000', 'http://localhost:5173'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true

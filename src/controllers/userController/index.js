@@ -21,6 +21,25 @@ const query = async (sql, params = []) => {
     }
 };
 
+exports.getUsersNew = async (req, res) => {
+    try {
+        const users = await query('SELECT * FROM users WHERE is_deleted = 0 ORDER BY id DESC');
+        
+        res.json({
+            success: true,
+            users
+        });
+        
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({ 
+            success: false,
+            error: 'Failed to fetch users',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
 exports.getAllUsers = async (req, res) => {
     try {
         const page = parseInt(req.query.page, 10) || 1;
@@ -1831,18 +1850,266 @@ exports.exportUserAttendanceToWord = async (req, res) => {
             stack: error.stack
         } : undefined
     });
-} finally {
-    if (connection) {
-        try {
-            await connection.release();
-            console.log('Database connection released');
-        } catch (releaseError) {
-            console.error('Error releasing database connection:', releaseError);
+    } finally {
+        if (connection) {
+            try {
+                await connection.release();
+                console.log('Database connection released');
+            } catch (releaseError) {
+                console.error('Error releasing database connection:', releaseError);
+            }
         }
     }
-}
 };
 
-exports.getDataFromDevice = async (req, res) => {
-    const { type } = req.query;
+// Sync users from device or into device
+exports.syncUsers = async (req, res) => {
+    const { type, deviceUsers } = req.body;
+    
+    try {
+        if (!type || !['from_device', 'to_device'].includes(type)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Valid sync type (from_device or to_device) is required'
+            });
+        }
+
+        if (!deviceUsers || !Array.isArray(deviceUsers)) {
+            return res.status(400).json({
+                success: false,
+                error: 'Device users data is required'
+            });
+        }
+
+        // Get users from database
+        const dbResults = await query(
+            'SELECT id, zk_id, first_name, last_name, email FROM users WHERE status = ?',
+            ['active']
+        );
+        console.log(`syncUsers: fetched ${dbResults.length} users from database`);
+
+        if (type === 'from_device') {
+            // Find users in device that are not in DB (compare by zk_id)
+            const missingUsers = deviceUsers.filter(deviceUser => {
+                return !dbResults.some(dbUser => 
+                    dbUser.zk_id && dbUser.zk_id.toString() === deviceUser.userId.toString()
+                );
+            });
+
+            console.log(`Found ${missingUsers.length} users to add to DB`);
+
+            let insertedCount = 0;
+            let errorCount = 0;
+
+            // Insert missing users into DB
+            for (const user of missingUsers) {
+                try {
+                    const nameParts = user.name.split(' ');
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || user.name;
+                    
+                    await query(
+                        `INSERT INTO users (zk_id, first_name, last_name, email, position, department, status, created_at, updated_at) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                        [
+                            user.userId,
+                            firstName,
+                            lastName,
+                            `${user.userId.replace(/\s+/g, '')}@device.local`,
+                            'Employee',
+                            'coal_handling',
+                            'active'
+                        ]
+                    );
+                    insertedCount++;
+                } catch (error) {
+                    console.error(`Failed to insert user ${user.name}:`, error);
+                    errorCount++;
+                }
+            }
+
+            return res.json({ 
+                success: true, 
+                message: `Sync completed: ${insertedCount} users added to database${errorCount > 0 ? `, ${errorCount} errors` : ''}`,
+                details: {
+                    totalDeviceUsers: deviceUsers.length,
+                    totalDbUsers: dbResults.length,
+                    usersInserted: insertedCount,
+                    errors: errorCount
+                }
+            });
+
+        } else if (type === 'to_device') {
+            // For to_device, we need to return the list of users to remove from device
+            const usersToRemove = deviceUsers.filter(deviceUser => {
+                return !dbResults.some(dbUser => 
+                    dbUser.zk_id && dbUser.zk_id.toString() === deviceUser.userId.toString()
+                );
+            });
+
+            console.log(`Found ${usersToRemove.length} users to remove from device`);
+
+            return res.json({ 
+                success: true, 
+                message: `Found ${usersToRemove.length} users to remove from device`,
+                usersToRemove: usersToRemove,
+                details: {
+                    totalDeviceUsers: deviceUsers.length,
+                    totalDbUsers: dbResults.length,
+                    usersToRemove: usersToRemove.length
+                }
+            });
+        }
+
+    } catch (error) {
+        console.error('Error in syncUsers:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Failed to sync users',
+            details: error.message
+        });
+    }
+}
+
+// New sync proccess of users
+exports.syncUsersNew = async (req, res) => {
+    const { type, deviceUsers, databaseUsers } = req.body;
+    
+    // Handle different data structures from ZK device
+    let usersArray = deviceUsers;
+    if (deviceUsers && deviceUsers.data && Array.isArray(deviceUsers.data)) {
+        usersArray = deviceUsers.data;
+    } else if (!Array.isArray(deviceUsers)) {
+        console.log('deviceUsers structure:', deviceUsers);
+        usersArray = [];
+    }
+
+    // Use passed databaseUsers instead of fetching from database
+    const dbUsers = databaseUsers || [];
+
+    let missingUsers = [];
+    let insertedCount = 0;
+    let errorCount = 0;
+    let errorDetails = [];
+
+    missingUsers = usersArray.filter(deviceUser => {
+        return !dbUsers.some(dbUser => 
+            dbUser.zk_id && dbUser.zk_id.toString() === deviceUser.uid.toString()
+        );
+    });
+
+    // Process to insert users from device into database 
+    if (missingUsers.length > 0) {
+        for (const deviceUser of missingUsers) {
+            try {
+                // Extract user data from device user
+                let firstName, lastName;
+                
+                // Handle different name formats
+                if (deviceUser.name.includes(',')) {
+                    // Format: "LASTNAME,Firstname" -> swap to "Firstname Lastname"
+                    const [last, first] = deviceUser.name.split(',').map(part => part.trim());
+                    firstName = first;
+                    lastName = last;
+                } else {
+                    // Format: "First Middle Last Suffix" -> intelligent parsing
+                    const nameParts = deviceUser.name.trim().split(/\s+/);
+                    
+                    // Common suffixes to check
+                    const suffixes = ['Jr', 'Jr.', 'Sr', 'Sr.', 'II', 'III', 'IV', 'V', 'VI', 'Senior', 'Junior'];
+                    
+                    if (nameParts.length === 1) {
+                        // Single name only
+                        firstName = nameParts[0];
+                        lastName = '';
+                    } else if (nameParts.length === 2) {
+                        // First Last
+                        firstName = nameParts[0];
+                        lastName = nameParts[1];
+                    } else {
+                        // Check if last part is a suffix
+                        const lastPart = nameParts[nameParts.length - 1];
+                        const isSuffix = suffixes.includes(lastPart);
+                        
+                        if (isSuffix) {
+                            // Last part is suffix, so second-to-last is last name
+                            lastName = nameParts[nameParts.length - 2];
+                            // Everything before last name is first name
+                            firstName = nameParts.slice(0, nameParts.length - 2).join(' ');
+                        } else {
+                            // No suffix, last part is last name
+                            lastName = nameParts[nameParts.length - 1];
+                            // Everything before last name is first name
+                            firstName = nameParts.slice(0, nameParts.length - 1).join(' ');
+                        }
+                    }
+                }
+                
+                // Clean up the names
+                const cleanFirstName = firstName.replace(/\s+/g, ' ').trim();
+                const cleanLastName = lastName.replace(/\s+/g, ' ').trim();
+                
+                const result = await query(
+                    `INSERT INTO users (
+                        first_name, 
+                        last_name, 
+                        zk_id, 
+                        password, 
+                        role,
+                        has_fingerprint,
+                        created_at,
+                        updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+                    [
+                        cleanFirstName,
+                        cleanLastName,
+                        deviceUser.uid, // Use uid instead of userId
+                        deviceUser.password || '1234', // Default password if not provided
+                        0, // Default role
+                        0 // Default has_fingerprint
+                    ]
+                );
+                insertedCount++;
+                console.log(`Inserted user: ${deviceUser.name} (ID: ${deviceUser.uid})`);
+            } catch (error) {
+                const errorDetail = {
+                    userName: deviceUser.name,
+                    userId: deviceUser.uid,
+                    errorMessage: error.message,
+                    errorCode: error.code || 'UNKNOWN',
+                    sqlState: error.sqlState || 'N/A',
+                    sqlMessage: error.sqlMessage || 'N/A'
+                };
+                
+                errorDetails.push(errorDetail);
+                
+                console.error(`Failed to insert user ${deviceUser.name} (ID: ${deviceUser.uid}):`, {
+                    message: error.message,
+                    code: error.code || 'UNKNOWN',
+                    sqlState: error.sqlState || 'N/A',
+                    sqlMessage: error.sqlMessage || 'N/A'
+                });
+                errorCount++;
+            }
+        }
+
+        console.log(`User insertion completed: ${insertedCount} inserted, ${errorCount} errors`);
+    }
+    
+    console.log(`Found ${missingUsers.length} users to add to database`);
+    
+    res.json({
+        status: true,
+        sync_type: type,
+        deviceUsers: usersArray,
+        dbUsers: dbUsers,
+        sync_results: {
+            total_found: missingUsers.length,
+            successful_inserts: insertedCount || 0,
+            failed_inserts: errorCount || 0,
+            error_details: errorDetails,
+            message: `Sync completed: ${insertedCount || 0} users added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        },
+        message: 'Sync completed successfully'
+    });
 }

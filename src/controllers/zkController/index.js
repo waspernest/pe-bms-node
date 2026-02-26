@@ -555,6 +555,112 @@ exports.getDevice = async (req, res) => {
     }
 };
 
+exports.syncToDevice = async (req, res) => {
+    const { type, deviceUsers, databaseUsers, zk_ip, zk_port, zk_timeout } = req.body;
+    
+    // Set up deviceConfig for createOrUpdateUser function using the passed device config
+    req.deviceConfig = {
+        ip: zk_ip || config.zk_ip,
+        port: zk_port || config.zk_port,
+        timeout: zk_timeout || config.zk_timeout,
+        readTimeout: config.zk_read_timeout
+    };
+    
+    console.log('Using device config for syncToDevice:', req.deviceConfig);
+    
+    // Handle different data structures for database users
+    let dbUsersArray = databaseUsers;
+    if (!Array.isArray(databaseUsers)) {
+        console.log('databaseUsers structure:', databaseUsers);
+        dbUsersArray = [];
+    }
+
+    // Handle different data structures from ZK device
+    let usersArray = deviceUsers;
+    if (deviceUsers && deviceUsers.data && Array.isArray(deviceUsers.data)) {
+        usersArray = deviceUsers.data;
+    } else if (!Array.isArray(deviceUsers)) {
+        console.log('deviceUsers structure:', deviceUsers);
+        usersArray = [];
+    }
+
+    let missingUsers = [];
+    let insertedCount = 0;
+    let errorCount = 0;
+    let errorDetails = [];
+
+    // Find users that are in database but not in device
+    missingUsers = dbUsersArray.filter(dbUser => {
+        return dbUser.zk_id && !usersArray.some(deviceUser => 
+            deviceUser.uid && deviceUser.uid.toString() === dbUser.zk_id.toString()
+        );
+    });
+
+    // Process to add users from database to device
+    if (missingUsers.length > 0) {
+        for (const dbUser of missingUsers) {
+            try {
+                // Prepare user data for createOrUpdateUser function
+                const userData = {
+                    uid: parseInt(dbUser.zk_id),
+                    userid: parseInt(dbUser.zk_id), // Use zk_id as userid
+                    name: `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim(),
+                    password: dbUser.password || '1234',
+                    role: dbUser.role || 0,
+                    cardno: dbUser.cardno || 0
+                };
+
+                // Create a mock request object for createOrUpdateUser
+                const userReq = { 
+                    body: userData,
+                    deviceConfig: req.deviceConfig
+                };
+
+                // Use existing createOrUpdateUser function
+                await exports.createOrUpdateUser(userReq);
+                insertedCount++;
+                console.log(`Added user to device: ${userData.name} (ID: ${userData.uid})`);
+            } catch (error) {
+                const errorDetail = {
+                    userName: `${dbUser.first_name || ''} ${dbUser.last_name || ''}`.trim(),
+                    userId: dbUser.zk_id,
+                    errorMessage: error.message,
+                    errorCode: error.code || 'UNKNOWN',
+                    deviceError: error.deviceError || 'N/A'
+                };
+                
+                errorDetails.push(errorDetail);
+                
+                console.error(`Failed to add user ${dbUser.first_name} ${dbUser.last_name} to device:`, {
+                    message: error.message,
+                    code: error.code || 'UNKNOWN',
+                    deviceError: error.deviceError || 'N/A'
+                });
+                errorCount++;
+            }
+        }
+        
+        console.log(`Device sync completed: ${insertedCount} added, ${errorCount} errors`);
+    }
+    
+    console.log(`Found ${missingUsers.length} users to add to device`);
+    
+    return {
+        status: true,
+        sync_type: type,
+        deviceUsers: usersArray,
+        dbUsers: dbUsersArray,
+        sync_results: {
+            total_found: missingUsers.length,
+            successful_inserts: insertedCount || 0,
+            failed_inserts: errorCount || 0,
+            error_details: errorDetails,
+            message: `Device sync completed: ${insertedCount || 0} users added successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+        },
+        message: 'Device sync completed successfully'
+    };
+};
+
 exports.zkService = async (req, res) => {
     try {
         const { action, aid, ...data } = req.body;
@@ -613,8 +719,53 @@ exports.zkService = async (req, res) => {
                     };
                     result = await exports.createOrUpdateUser(userReq, res);
                     break;
-                case 'syncUsers':
-                    result = await exports.getUsers(req, res);
+                case 'getUsers':
+                    {
+                        const users = await exports.getUsers(req);
+                        console.log(`zkService syncUsers: fetched ${Array.isArray(users) ? users.length : 0} users`);
+                        result = { success: true, users };
+                    }
+                    break;
+                case 'sync_to_device':
+                    {
+                        result = await exports.syncToDevice(req, res);
+                    }
+                    break;
+                case 'deleteUser':
+                    {
+                        const { uid } = data;
+                        if (!uid) {
+                            return res.status(400).json({
+                                success: false,
+                                error: 'User ID (uid) is required for delete operation'
+                            });
+                        }
+                        
+                        const zkDevice = new ZKLib(
+                            req.deviceConfig.ip, 
+                            parseInt(req.deviceConfig.port, 10), 
+                            parseInt(req.deviceConfig.timeout, 10), 
+                            parseInt(req.deviceConfig.readTimeout, 10)
+                        );
+
+                        try {
+                            await zkDevice.createSocket();
+                            const deleteResult = await zkDevice.deleteUser(uid);
+                            await zkDevice.disconnect();
+                            
+                            result = { 
+                                success: true, 
+                                message: `User ${uid} successfully removed from device`,
+                                result: deleteResult
+                            };
+                        } catch (error) {
+                            console.error(`Error deleting user ${uid} from device:`, error);
+                            result = { 
+                                success: false, 
+                                error: `Failed to delete user ${uid} from device: ${error.message}`
+                            };
+                        }
+                    }
                     break;
                 default:
                     return res.status(400).json({

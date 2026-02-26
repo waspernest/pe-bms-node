@@ -30,6 +30,7 @@ const {
  * Convert date to local timezone format for database storage
  * @private
  * @param {string} dateStr - Date string in YYYY-MM-DD format
+ */
 const convertToLocalDate = (dateStr) => {
     if (!dateStr) return null;
 
@@ -41,12 +42,6 @@ const convertToLocalDate = (dateStr) => {
     // Convert to local date string
     const date = new Date(dateStr);
     return toMYSQLDate(date);
-    const connection = await getPool().getConnection();
-    try {
-        const [results] = await connection.query(sql, params);
-        return results;
-    } finally {
-    }
 };
 
 /**
@@ -553,6 +548,350 @@ exports.getUserAttendance = async (req, res) => {
 };
 
 /**
+ * Sync attendance from device with duplicate checking and proper time_in/time_out processing
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.syncAttendanceWithLogic = async (req, res) => {
+    try {
+        const { attendance } = req.body;
+        
+        if (!attendance || !Array.isArray(attendance)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Attendance data is required and must be an array' 
+            });
+        }
+
+        console.log(`Processing ${attendance.length} attendance records with duplicate checking...`);
+        
+        // Get the latest date and time from database
+        const [latestDateTimeResult] = await query(
+            `SELECT MAX(CONCAT(log_date, ' ', IFNULL(time_in, '00:00:00'))) as latest_datetime FROM attendance`
+        );
+        
+        const latestDateTime = latestDateTimeResult && latestDateTimeResult.latest_datetime ? latestDateTimeResult.latest_datetime : null;
+        
+        if (latestDateTime) {
+            console.log(`Latest date and time in database: ${latestDateTime}`);
+        } else {
+            console.log('No records found in database, will process all records');
+        }
+        
+        // Pre-filter attendance array to only include records after latest date and time
+        let filteredAttendance = attendance;
+        if (latestDateTime) {
+            filteredAttendance = attendance.filter(record => {
+                const localLogDate = convertToLocalDate(record.log_date);
+                const recordDateTime = `${localLogDate} ${record.time}`;
+                return recordDateTime > latestDateTime;
+            });
+            console.log(`Filtered from ${attendance.length} to ${filteredAttendance.length} records after ${latestDateTime}`);
+        }
+        
+        const results = [];
+        let processedRecords = 0;
+        let skippedRecords = 0;
+        let errorRecords = 0;
+        
+        for (const record of filteredAttendance) {
+            const { zk_id, log_date, time } = record;
+            
+            // Validate required fields
+            if (!zk_id || !log_date || !time) {
+                console.warn('Skipping invalid record - missing required fields:', record);
+                results.push({ ...record, status: 'invalid', reason: 'Missing required fields' });
+                skippedRecords++;
+                continue;
+            }
+            
+            // Convert log_date to proper local timezone format
+            const localLogDate = convertToLocalDate(log_date);
+            
+            try {
+                // Check if this attendance record already exists in database
+                const [existing] = await query(
+                    `SELECT id FROM attendance 
+                     WHERE zk_id = ? AND log_date = ? AND (time_in = ? OR time_out = ?)`,
+                    [zk_id, localLogDate, time, time]
+                );
+                
+                if (existing && existing.length > 0) {
+                    // Record already exists - skip it
+                    skippedRecords++;
+                    results.push({ 
+                        ...record, 
+                        status: 'skipped',
+                        reason: 'Record already exists in database'
+                    });
+                    continue;
+                }
+                
+                // Process the record using logAttendance logic
+                const result = await processAttendanceRecord(record, localLogDate);
+                
+                if (result.success) {
+                    processedRecords++;
+                    results.push({ 
+                        ...record, 
+                        status: 'processed',
+                        action: result.action,
+                        id: result.id
+                    });
+                } else {
+                    errorRecords++;
+                    results.push({ 
+                        ...record, 
+                        status: 'error',
+                        reason: result.error
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error processing record:', record, error);
+                errorRecords++;
+                results.push({ 
+                    ...record, 
+                    status: 'error',
+                    reason: error.message 
+                });
+            }
+        }
+        
+        console.log(`Processing completed: ${processedRecords} processed, ${skippedRecords} skipped, ${errorRecords} errors`);
+        
+        res.json({
+            success: true,
+            message: `Attendance sync completed: ${processedRecords} records processed, ${skippedRecords} duplicates skipped (processed ${filteredAttendance.length} out of ${attendance.length} total records)`,
+            results: {
+                total: attendance.length,
+                processed: filteredAttendance.length,
+                new: processedRecords,
+                skipped: skippedRecords,
+                errors: errorRecords,
+                latest_database_datetime: latestDateTime,
+                details: results
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in syncAttendanceWithLogic:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
+ * Process a single attendance record using logAttendance logic
+ * @private
+ * @param {Object} record - Attendance record with zk_id, log_date, time
+ * @param {string} localLogDate - Formatted date string
+ * @returns {Object} Processing result
+ */
+const processAttendanceRecord = async (record, localLogDate) => {
+    const { zk_id, time } = record;
+    
+    try {
+        // Find all attendance records for this user on this date
+        const recordsResult = await query(
+            `SELECT id, time_in, time_out 
+             FROM attendance 
+             WHERE zk_id = ? AND log_date = ?
+             ORDER BY time_in`,
+            [zk_id, localLogDate]
+        );
+        
+        // Ensure records is always an array
+        const records = Array.isArray(recordsResult) ? recordsResult : [];
+        
+        let action;
+        let recordUpdated = false;
+        
+        // Check if there's an open record (time_in without time_out)
+        const openRecord = records.find(r => r.time_in && !r.time_out);
+        
+        if (openRecord) {
+            // If there's an open record and the new time is after the time_in
+            if (time > openRecord.time_in) {
+                // Update the time_out of the open record
+                const updateResult = await query(
+                    'UPDATE attendance SET time_out = ?, log_type = 1 WHERE id = ?',
+                    [time, openRecord.id]
+                );
+                
+                if (!updateResult) {
+                    return { success: false, error: 'Failed to update attendance record' };
+                }
+                
+                action = 'time_out';
+                recordUpdated = true;
+            } else {
+                // If new time is before the open record's time_in, skip it
+                return { success: false, error: 'Time is before last time_in' };
+            }
+        }
+        
+        // If no open record was updated, check if we need to create a new time_in
+        if (!recordUpdated) {
+            // Check if the new time is after the last time_out (if any)
+            const lastRecord = records[records.length - 1];
+            if (!lastRecord || (lastRecord.time_out && time > lastRecord.time_out)) {
+                // Create a new time_in record with log_type = 1 (device log)
+                const insertResult = await query(
+                    'INSERT INTO attendance (zk_id, log_date, time_in, time_out, log_type) VALUES (?, ?, ?, NULL, 1)',
+                    [zk_id, localLogDate, time]
+                );
+                
+                if (!insertResult || !insertResult.insertId) {
+                    return { success: false, error: 'Failed to create attendance record' };
+                }
+                
+                action = 'time_in';
+                recordUpdated = true;
+            } else {
+                // If we get here, time doesn't make sense (before last time_out)
+                return { success: false, error: 'Invalid time sequence' };
+            }
+        }
+        
+        return { success: true, action };
+        
+    } catch (error) {
+        console.error('Error processing attendance record:', record, error);
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Sync attendance from device by comparing with database
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.syncAttendanceNew = async (req, res) => {
+    try {
+        const { attendance } = req.body;
+        
+        if (!attendance || !Array.isArray(attendance)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Attendance data is required and must be an array' 
+            });
+        }
+
+        console.log(`Comparing ${attendance.length} attendance records with database...`);
+        
+        // Get the latest date from database
+        const [latestDateResult] = await query(
+            `SELECT MAX(log_date) as latest_date FROM attendance`
+        );
+        
+        const latestDate = latestDateResult && latestDateResult[0] ? latestDateResult[0].latest_date : null;
+        
+        if (latestDate) {
+            console.log(`Latest date in database: ${latestDate}`);
+        } else {
+            console.log('No records found in database, will process all records');
+        }
+        
+        // Pre-filter attendance array to only include records after latest date
+        let filteredAttendance = attendance;
+        if (latestDate) {
+            filteredAttendance = attendance.filter(record => {
+                const localLogDate = convertToLocalDate(record.log_date);
+                return localLogDate > latestDate;
+            });
+            console.log(`Filtered from ${attendance.length} to ${filteredAttendance.length} records after ${latestDate}`);
+        }
+        
+        const results = [];
+        let newRecords = 0;
+        let existingRecords = 0;
+        
+        for (const record of filteredAttendance) {
+            const { zk_id, log_date, time } = record;
+            
+            // Validate required fields
+            if (!zk_id || !log_date || !time) {
+                console.warn('Skipping invalid record - missing required fields:', record);
+                results.push({ ...record, status: 'invalid', reason: 'Missing required fields' });
+                continue;
+            }
+            
+            // Convert log_date to proper local timezone format
+            const localLogDate = convertToLocalDate(log_date);
+            
+            try {
+                // Check if this attendance record already exists in database
+                const [existing] = await query(
+                    `SELECT id, time_in, time_out FROM attendance 
+                     WHERE zk_id = ? AND log_date = ? AND (time_in = ? OR time_out = ?)`,
+                    [zk_id, localLogDate, time, time]
+                );
+                
+                // Log for debugging first few records
+                if (results.length < 5) {
+                    console.log(`Debug - Looking for: zk_id=${zk_id}, log_date=${localLogDate}, time=${time}`);
+                    console.log(`Debug - Exact match found:`, existing);
+                }
+                
+                if (existing && existing.length > 0) {
+                    // Record already exists (exact time match)
+                    existingRecords++;
+                    results.push({ 
+                        ...record, 
+                        status: 'existing',
+                        reason: 'Record already exists in database'
+                    });
+                } else {
+                    // Record is new - check if we can process it using logAttendance logic
+                    newRecords++;
+                    results.push({ 
+                        ...record, 
+                        status: 'new',
+                        reason: 'New record - would be processed by logAttendance logic',
+                        action: 'would_process'
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error checking record:', record, error);
+                results.push({ 
+                    ...record, 
+                    status: 'error',
+                    reason: error.message 
+                });
+            }
+        }
+        
+        console.log(`Comparison completed: ${newRecords} new records, ${existingRecords} existing records`);
+        
+        res.json({
+            success: true,
+            message: `Attendance comparison completed: ${newRecords} new records found, ${existingRecords} existing records (processed ${filteredAttendance.length} out of ${attendance.length} total records)`,
+            results: {
+                total: attendance.length,
+                processed: filteredAttendance.length,
+                new: newRecords,
+                existing: existingRecords,
+                latest_database_date: latestDate,
+                details: results
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error in syncAttendanceNew:', error);
+        res.status(500).json({ 
+            success: false, 
+            error: 'Internal server error',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+/**
  * Log attendance for users
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -581,8 +920,15 @@ exports.logAttendance = async (req, res) => {
         }
 
         const results = [];
+        const BATCH_SIZE = 100; // Process 100 records at a time
         
-        for (const record of attendance) {
+        console.log(`Processing ${attendance.length} attendance records in batches of ${BATCH_SIZE}...`);
+        
+        for (let i = 0; i < attendance.length; i += BATCH_SIZE) {
+            const batch = attendance.slice(i, i + BATCH_SIZE);
+            console.log(`Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(attendance.length/BATCH_SIZE)} (${batch.length} records)`);
+            
+            for (const record of batch) {
             const { zk_id, log_date, time } = record;
             
             // Validate required fields
@@ -646,13 +992,12 @@ exports.logAttendance = async (req, res) => {
                                 time_in: updatedRecord.time_in,
                                 log_date: updatedRecord.log_date
                             });
-                        } else {
-                            throw new Error('Failed to retrieve updated record');
                         }
-                        recordUpdated = true;
                     } else {
-                        // If the new time is before the open record's time_in, it's an error
-                        throw new Error('New time is before the last time_in');
+                        // If new time is before the open record's time_in, skip it
+                        console.warn('Skipping record - time is before last time_in:', record);
+                        results.push({ ...record, error: 'Time is before last time_in', action: 'skipped' });
+                        continue;
                     }
                 }
                 
@@ -693,8 +1038,10 @@ exports.logAttendance = async (req, res) => {
                             throw new Error('Failed to retrieve created record');
                         }
                     } else {
-                        // If we get here, the time doesn't make sense (before last time_out)
-                        throw new Error('Invalid time sequence');
+                        // If we get here, time doesn't make sense (before last time_out)
+                        console.warn('Skipping record - invalid time sequence:', record);
+                        results.push({ ...record, error: 'Invalid time sequence', action: 'skipped' });
+                        continue;
                     }
                 }
                 
@@ -707,6 +1054,7 @@ exports.logAttendance = async (req, res) => {
                 });
             }
         }
+        } // Close batch loop
 
         res.json({
             success: true,
