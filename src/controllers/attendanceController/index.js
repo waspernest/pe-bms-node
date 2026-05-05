@@ -1,5 +1,6 @@
 const fs = require('fs').promises;
 const path = require('path');
+const os = require('os');
 const { getPool } = require('../../mysql');
 const xlsx = require('xlsx');
 const { Readable } = require('stream');
@@ -49,7 +50,7 @@ const convertToLocalDate = (dateStr) => {
  * @private
  */
 const ensureLogsDirectory = async () => {
-    const logsDir = path.join(process.cwd(), 'logs');
+    const logsDir = path.join(os.tmpdir(), 'pe-bms-logs');
     try {
         await fs.access(logsDir);
     } catch (error) {
