@@ -24,4 +24,20 @@ router.get('/progress', (req, res) => {
     });
 });
 
+// Simple REST progress endpoint for polling
+router.get('/progress-rest', (req, res) => {
+    try {
+        const progress = getImportProgress();
+        res.json({
+            success: true,
+            progress
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: 'Failed to get progress'
+        });
+    }
+});
+
 module.exports = router;
