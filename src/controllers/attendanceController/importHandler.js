@@ -329,8 +329,8 @@ class AttendanceImportHandler {
                     try {
                         const result = await query(
                             `INSERT INTO attendance 
-                            (zk_id, log_date, time_in, time_out, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, NOW(), NOW())`,
+                            (zk_id, log_date, time_in, time_out, straight_shift_id, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, NULL, NOW(), NOW())`,
                             [zk_id, log_date, time_in, time_out || null]
                         );
                         
