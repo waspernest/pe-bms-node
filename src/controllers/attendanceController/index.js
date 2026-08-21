@@ -24,7 +24,8 @@ const {
     processExcelFile, 
     processCsvFile, 
     processDatFile,
-    importToDatabase 
+    importToDatabase,
+    analyzeDatFileTimeMatches
 } = require('./importHandler');
 
 /**
@@ -113,7 +114,6 @@ const writeImportLog = async (file, data, importResults) => {
     ].join('\n');
 
     await fs.writeFile(logFilePath, logContent, 'utf8');
-    console.log('Import log written to:', logFilePath);
     return logFilePath;
 };
 
@@ -1083,39 +1083,36 @@ exports.importAttendance = async (req, res) => {
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    console.log('File received in memory:', {
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-        bufferLength: req.file.buffer ? req.file.buffer.length : 0
-    });
+    const { department, dryRun } = req.body;
+    const isDryRun = dryRun === true || dryRun === 'true';
     
     try {
         let data;
-        console.log('Starting file processing...');
+        let datAnalysis = null;
         
         if (req.file.mimetype.includes('excel') || 
             req.file.originalname.endsWith('.xlsx') || 
             req.file.originalname.endsWith('.xls')) {
             
-            console.log('Processing as Excel file...');
             data = await processExcelFile(req.file.buffer);
             
         } else if (req.file.mimetype.includes('csv') || 
                   req.file.originalname.endsWith('.csv')) {
             
-            console.log('Processing as CSV file...');
             data = await processCsvFile(req.file.buffer);
             
         } else if (req.file.mimetype.includes('octet-stream') || 
                  req.file.originalname.endsWith('.dat')) {
             
-            console.log('Processing as DAT file...');
             try {
+                // processDatFile() logs every record it parses.
                 data = await processDatFile(req.file.buffer);
-                console.log(`Successfully parsed DAT file. Found ${data ? data.length : 0} records.`);
-                if (data && data.length > 0) {
-                    console.log('First record sample:', JSON.stringify(data[0]));
+
+                // TEST/VERIFICATION - does not touch the database.
+                try {
+                    datAnalysis = analyzeDatFileTimeMatches(req.file.buffer);
+                } catch (analysisError) {
+                    console.error('Error analyzing DAT file for time_in/time_out matches:', analysisError);
                 }
             } catch (error) {
                 console.error('Error processing DAT file:', error);
@@ -1131,6 +1128,22 @@ exports.importAttendance = async (req, res) => {
             throw new Error('Failed to parse file data');
         }
 
+        // Exclude flagged (suspicious-gap) rows before anything touches the database,
+        // and before remapping (the analysis keys use the raw zk_id from the file).
+        // These are NOT inserted or updated. Since processDatFile() re-parses and
+        // re-groups punches fresh from whatever .dat file is uploaded, if a future
+        // export includes another punch for the same zk_id + log_date, the next
+        // import will naturally regroup with a bigger gap and pass through normally.
+        let flaggedRecords = [];
+        if (datAnalysis && datAnalysis.suspiciousGroups && datAnalysis.suspiciousGroups.length > 0) {
+            const suspiciousKeys = new Set(
+                datAnalysis.suspiciousGroups.map(g => `${g.zk_id}_${g.log_date}`)
+            );
+
+            flaggedRecords = data.filter(r => suspiciousKeys.has(`${r.zk_id}_${r.log_date}`));
+            data = data.filter(r => !suspiciousKeys.has(`${r.zk_id}_${r.log_date}`));
+        }
+
         // Department-aware remapping: if department is Utility or Operation,
         // treat incoming zk_id as possibly an old_zk_id and remap to current zk_id
         let remappedCount = 0;
@@ -1139,7 +1152,6 @@ exports.importAttendance = async (req, res) => {
         const needsOldIdRemap = dept === 'utility' || dept === 'operation';
 
         if (needsOldIdRemap) {
-            console.log('Department requires old_zk_id remapping. Building mapping from users table...');
             // Collect unique candidate IDs from data (only if zk_id present)
             const candidateIds = Array.from(new Set(
                 data
@@ -1167,7 +1179,6 @@ exports.importAttendance = async (req, res) => {
                         if (u && u.current_zk_id) currentIds.add(String(u.current_zk_id).trim());
                         if (u && u.old_zk_id) oldToNew.set(String(u.old_zk_id).trim(), String(u.current_zk_id).trim());
                     }
-                    console.log(`Remap candidates: ${candidateIds.length}, current matches: ${currentIds.size}, old->new mappings: ${oldToNew.size}`);
                 } catch (e) {
                     console.error('Error building old_zk_id mapping:', e);
                 }
@@ -1195,11 +1206,44 @@ exports.importAttendance = async (req, res) => {
                     }
                 }
                 data = transformed;
-                console.log(`After remapping: remapped=${remappedCount}, skipped_unknown_old_id=${skippedUnknownOldId}, remaining=${data.length}`);
             }
         }
 
-        console.log(`Processing ${data.length} records for database import...`);
+        if (isDryRun) {
+            return res.json({
+                success: true,
+                status: 'dry_run',
+                dryRun: true,
+                filename: req.file.originalname,
+                total: data.length,
+                message: 'Dry run completed - no records were inserted or updated.',
+                department_used_for_mapping: needsOldIdRemap ? dept : undefined,
+                remapped_from_old_zk_id: needsOldIdRemap ? remappedCount : undefined,
+                skipped_due_to_unknown_old_id: needsOldIdRemap ? skippedUnknownOldId : undefined,
+                datAnalysis: datAnalysis ? {
+                    totalRawPunches: datAnalysis.totalRawPunches,
+                    totalGroups: datAnalysis.totalGroups,
+                    thresholdMinutes: datAnalysis.thresholdMinutes,
+                    singlePunchCount: datAnalysis.singlePunchCount,
+                    suspiciousGapCount: datAnalysis.suspiciousGapCount,
+                    normalPairCount: datAnalysis.normalPairCount,
+                    suspiciousGroups: datAnalysis.suspiciousGroups
+                } : null,
+                flaggedForReview: {
+                    count: flaggedRecords.length,
+                    records: flaggedRecords,
+                    note: 'These records would be excluded from import due to a suspicious time gap between punches on the same log_date.'
+                },
+                dataPreview: data.slice(0, 5).map((record, index) => ({
+                    index: index + 1,
+                    zk_id: record.zk_id,
+                    log_date: record.log_date,
+                    time_in: record.time_in,
+                    time_out: record.time_out
+                }))
+            });
+        }
+
         const { 
             insertedRows, 
             skippedRows, 
@@ -1209,13 +1253,6 @@ exports.importAttendance = async (req, res) => {
             totalSkipped,
             totalFailed 
         } = await importToDatabase(data);
-        
-        console.log('Database import completed:', {
-            totalProcessed,
-            totalInserted,
-            totalSkipped,
-            totalFailed
-        });
         
         // Determine status based on results
         let status = 'success';
@@ -1236,14 +1273,23 @@ exports.importAttendance = async (req, res) => {
             status,
             filename: req.file.originalname,
             inserted: totalInserted,
-            skipped: totalSkipped,
+            skipped: totalSkipped + flaggedRecords.length,
             failed: totalFailed,
-            total: totalProcessed,
+            total: totalProcessed + flaggedRecords.length,
             message,
             // Extra metrics for department-based remapping
             department_used_for_mapping: needsOldIdRemap ? dept : undefined,
             remapped_from_old_zk_id: needsOldIdRemap ? remappedCount : undefined,
-            skipped_due_to_unknown_old_id: needsOldIdRemap ? skippedUnknownOldId : undefined
+            skipped_due_to_unknown_old_id: needsOldIdRemap ? skippedUnknownOldId : undefined,
+            // Records excluded before import due to a suspicious time gap between
+            // punches on the same log_date. Not inserted or updated.
+            flaggedForReview: {
+                count: flaggedRecords.length,
+                records: flaggedRecords,
+                note: flaggedRecords.length > 0
+                    ? 'These records were excluded from import due to a suspicious time gap between punches on the same log_date. They will be re-evaluated automatically the next time a file with punches for the same zk_id + log_date is imported.'
+                    : undefined
+            }
         };
         
         // Include errors for debugging if any
@@ -1252,7 +1298,6 @@ exports.importAttendance = async (req, res) => {
             response.errors = errors;
         }
         
-        console.log('Sending response:', JSON.stringify(response, null, 2));
         return res.json(response);
         
     } catch (error) {
@@ -1279,45 +1324,44 @@ exports.importAttendance = async (req, res) => {
 
 exports.importAttendanceNew = async (req, res) => {
 
-    const { department } = req.body;
+    const { department, dryRun } = req.body;
+    const isDryRun = dryRun === true || dryRun === 'true';
 
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
-
-    console.log('File received in memory:', {
-        originalname: req.file.originalname,
-        mimetype: req.file.mimetype,
-        size: req.file.size,
-        bufferLength: req.file.buffer ? req.file.buffer.length : 0
-    });
     
     try {
         let data;
-        console.log('Starting file processing...');
+        let datAnalysis = null;
         
         if (req.file.mimetype.includes('excel') || 
             req.file.originalname.endsWith('.xlsx') || 
             req.file.originalname.endsWith('.xls')) {
             
-            console.log('Processing as Excel file...');
             data = await processExcelFile(req.file.buffer);
             
         } else if (req.file.mimetype.includes('csv') || 
                   req.file.originalname.endsWith('.csv')) {
             
-            console.log('Processing as CSV file...');
             data = await processCsvFile(req.file.buffer);
             
         } else if (req.file.mimetype.includes('octet-stream') || 
                  req.file.originalname.endsWith('.dat')) {
             
-            console.log('Processing as DAT file...');
             try {
+                // processDatFile() logs every record it parses - the single
+                // source of truth for terminal output during import.
                 data = await processDatFile(req.file.buffer);
-                console.log(`Successfully parsed DAT file. Found ${data ? data.length : 0} records.`);
-                if (data && data.length > 0) {
-                    console.log('First record sample:', JSON.stringify(data[0]));
+
+                // TEST/VERIFICATION - does not touch the database.
+                // Surfaces employee/date groups where multiple scans are too
+                // close together to be a real in/out pair, so they can be
+                // excluded below.
+                try {
+                    datAnalysis = analyzeDatFileTimeMatches(req.file.buffer);
+                } catch (analysisError) {
+                    console.error('Error analyzing DAT file for time_in/time_out matches:', analysisError);
                 }
             } catch (error) {
                 console.error('Error processing DAT file:', error);
@@ -1333,14 +1377,61 @@ exports.importAttendanceNew = async (req, res) => {
             throw new Error('Failed to parse file data');
         }
 
-        console.log(`Processing ${data.length} records for database import...`);
+        // Exclude flagged (suspicious-gap) rows before anything touches the database.
+        // These are NOT inserted or updated. Since processDatFile() re-parses and
+        // re-groups punches fresh from whatever .dat file is uploaded, if a future
+        // export includes another punch for the same zk_id + log_date (e.g. a real
+        // end-of-day scan finally shows up), the next import will naturally regroup
+        // with a bigger gap and pass through normally - no extra state needs to be
+        // tracked here.
+        let flaggedRecords = [];
+        if (datAnalysis && datAnalysis.suspiciousGroups && datAnalysis.suspiciousGroups.length > 0) {
+            const suspiciousKeys = new Set(
+                datAnalysis.suspiciousGroups.map(g => `${g.zk_id}_${g.log_date}`)
+            );
+
+            flaggedRecords = data.filter(r => suspiciousKeys.has(`${r.zk_id}_${r.log_date}`));
+            data = data.filter(r => !suspiciousKeys.has(`${r.zk_id}_${r.log_date}`));
+        }
+
+        if (isDryRun) {
+            return res.json({
+                success: true,
+                status: 'dry_run',
+                dryRun: true,
+                filename: req.file.originalname,
+                total: data.length,
+                message: 'Dry run completed - no records were inserted or updated.',
+                datAnalysis: datAnalysis ? {
+                    totalRawPunches: datAnalysis.totalRawPunches,
+                    totalGroups: datAnalysis.totalGroups,
+                    thresholdMinutes: datAnalysis.thresholdMinutes,
+                    singlePunchCount: datAnalysis.singlePunchCount,
+                    suspiciousGapCount: datAnalysis.suspiciousGapCount,
+                    normalPairCount: datAnalysis.normalPairCount,
+                    suspiciousGroups: datAnalysis.suspiciousGroups
+                } : null,
+                flaggedForReview: {
+                    count: flaggedRecords.length,
+                    records: flaggedRecords,
+                    note: 'These records would be excluded from import due to a suspicious time gap between punches on the same log_date.'
+                },
+                dataPreview: data.slice(0, 5).map((record, index) => ({
+                    index: index + 1,
+                    zk_id: record.zk_id,
+                    log_date: record.log_date,
+                    time_in: record.time_in,
+                    time_out: record.time_out
+                }))
+            });
+        }
 
         // Create import log file with file content and parsed data preview
         const logFilePath = await writeImportLog(req.file, data, {
             status: 'processing',
             total: data.length,
             inserted: 0,
-            skipped: 0,
+            skipped: flaggedRecords.length,
             failed: 0,
             errors: []
         });
@@ -1374,12 +1465,21 @@ exports.importAttendanceNew = async (req, res) => {
             status,
             filename: req.file.originalname,
             inserted: totalInserted,
-            skipped: totalSkipped,
+            skipped: totalSkipped + flaggedRecords.length,
             failed: totalFailed,
-            total: totalProcessed,
+            total: totalProcessed + flaggedRecords.length,
             message,
             // Include log file path for reference
             logFile: logFilePath,
+            // Records excluded before import due to a suspicious time gap between
+            // punches on the same log_date. Not inserted or updated.
+            flaggedForReview: {
+                count: flaggedRecords.length,
+                records: flaggedRecords,
+                note: flaggedRecords.length > 0
+                    ? 'These records were excluded from import due to a suspicious time gap between punches on the same log_date. They will be re-evaluated automatically the next time a file with punches for the same zk_id + log_date is imported.'
+                    : undefined
+            },
             // Include preview of parsed data (first 5 records)
             dataPreview: data.slice(0, 5).map((record, index) => ({
                 index: index + 1,
@@ -1396,7 +1496,6 @@ exports.importAttendanceNew = async (req, res) => {
             response.errors = errors;
         }
         
-        console.log('Sending response:', JSON.stringify(response, null, 2));
         return res.json(response);
         
     } catch (error) {
